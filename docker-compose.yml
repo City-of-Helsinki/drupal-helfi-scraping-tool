@@ -1,0 +1,14 @@
+version: '4'
+services:
+  scrapy_service:
+    build: .
+    volumes:
+      - ./app:/usr/src/app
+    user: ${MY_UID}:${MY_GID}
+    tty: true
+    stdin_open: true
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    environment:
+      DOWNLOAD_URL: "${DOWNLOAD_URL}"
+    env_file:
+      - .env.local

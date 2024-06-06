@@ -1,0 +1,3 @@
+.env.local
+app/downloaded
+app/scraped_data.json
