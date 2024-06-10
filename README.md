@@ -18,7 +18,7 @@ This scraping tool helps to fill that need.
 * It scrapes the contents of the .html files
   * To make it faster, it can filter files to be scanned based on filename, filecontents
   * With the selected set of files, it performs a scrape using CSS selector
-* It returns the selected fields in a .json file, that can be previewed even while the scraping is ongoing
+* It returns the selected fields into  app/scraped_data.json file, that can be previewed even while the scraping is ongoing
 
 ## Installing
 
@@ -26,6 +26,7 @@ This scraping tool helps to fill that need.
 
 * Docker
 * Make
+* ~ 3 gigs of free space for the site clone as of June 2024
 
 ### Install steps
 
@@ -33,7 +34,8 @@ This scraping tool helps to fill that need.
 2. Create environment variables `cp .env.local.example .env.local`
 3. Edit environment variables, at least add the DOWNLOAD_URL
 4. Run `make start` to create docker container
-5. Read usage instructions below
+5. Run `make download` to get the latest clone of the website.
+6. Read usage instructions below
 
 ## Usage
 
@@ -43,8 +45,8 @@ This tool is used to scrape data from Drupal Helfi sites. It uses the [Scrapy](h
 
 * `make start` starts the container and copies potential previously downloaded files in it
 * `make stop` stops the container, it does not remove files from filesystem
-* `make download` downloads data for scraping
-* `make scrape <scrape_module>` scrapes the data using given module rules (see below)
+* `make download` downloads latest data for scraping
+* `make scrape <scrape_module>` scrapes the downloaded data using given module rules (see below)
 * `make list` lists available scrape modules
 * `make env` lists env settings as the tool sees them, useful for debugging if the tool does not work
 
@@ -53,6 +55,7 @@ This tool is used to scrape data from Drupal Helfi sites. It uses the [Scrapy](h
 When I want to use this tool, I normally do the following:
 
 * Start the container if it's not already running `make start`
+* If I have not run the download command for a while (data updates once per day), I run `make download`
 * Copy `app/crawls/_example.ph` to a new file in the same folder with a descriptive name
   * For example: `app/crawls/list-of-links.py`
 * Modify the new file to reduce the files to be searched as small as possible using filename and filecontents patterns
@@ -84,9 +87,9 @@ To keep the scraping time sane, follow these steps.
 
 * The copy of hel.fi is not perfect.
   * It's build by crawling the site and collecting urls while saving.
-  * It also downloads sitemap.xml files and adds links to parse from there.
-  * It modifies the HTML source, for example, it removes image source variants, basically blocking any queries related to that.
-  * It also modifies the paths to include .html suffix
+  * It also downloads sitemap.xml files and adds those urls to be crawled.
+  * It modifies the crawled HTML source, for example, it removes image source variants, basically blocking any queries related to actual image syntax.
+  * It also modifies the paths to include .html suffix, which I've tried to counter with some code, but not all can be fixed (paging for example)
   * Regarding paged content, it tries to crawl them, but it adds an hex code to the end of the filename beyond first page.
 
 ### Scrape modules
