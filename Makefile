@@ -36,7 +36,7 @@ define run_target
 		ls -1 app/crawls | sed 's/\.py$$//' | sed 's/^/ - /'; \
 		exit 1; \
 	else \
-		${DOCKER_COMPOSE} run -e SCRAPE_MODULE="$(filter-out $@,$(MAKECMDGOALS))" scrapy_service $1; \
+		${DOCKER_COMPOSE} run --rm -e SCRAPE_MODULE="$(filter-out $@,$(MAKECMDGOALS))" scrapy_service $1; \
 	fi
 endef
 
