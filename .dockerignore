@@ -1,1 +1,3 @@
-downloaded/hts-cache
+app/downloaded
+app/scraped_data.json
+.env.local
