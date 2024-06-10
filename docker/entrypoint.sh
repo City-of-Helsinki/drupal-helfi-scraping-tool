@@ -13,9 +13,6 @@ case "$1" in
   scrape)
     scrapy crawl -L ERROR helficopy
     ;;
-  test)
-    echo "Test '${ARGS}'"
-    ;;
   *)
     echo "Next options:"
     echo "  * 'make download' to get the latest copy of the data to be scraped"
