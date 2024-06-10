@@ -15,9 +15,11 @@ SCRAPE_MODULE=${SCRAPE_MODULE:-all}
 case "$1" in
   download)
     wget "$DOWNLOAD_URL" -O /tmp/downloaded.zip && \
-    rm -rf /usr/src/app/downloaded && \
-    unzip /tmp/downloaded.zip -d /usr/src/app/downloaded && \
-    find /usr/src/app/downloaded/ -type f ! -name "*.html" -exec rm -f {} +  && \
+    # cp /tmp/downloaded.zip /usr/src/app/ && \
+    rm -rf /usr/src/app/downloaded/rw/* && \
+    unzip /tmp/downloaded.zip -d /usr/src/app/downloaded/rw && \
+    # unzip /usr/src/app/downloaded.zip -d /usr/src/app/downloaded/rw && \
+    find /usr/src/app/downloaded/rw/ -type f ! -name "*.html" -exec rm -f {} +  #&& \
     rm /tmp/downloaded.zip
     ;;
   scrape)

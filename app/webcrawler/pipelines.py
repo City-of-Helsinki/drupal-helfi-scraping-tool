@@ -16,7 +16,7 @@ import json
 
 class JsonExportPipeline:
     def open_spider(self, spider):
-        self.file = open('scraped_data.json', 'w', encoding='utf-8')
+        self.file = open('../result/scraped_data.json', 'w', encoding='utf-8')
         self.file.write('[')
         self.item_count = 0  # Initialize a counter for the items
 

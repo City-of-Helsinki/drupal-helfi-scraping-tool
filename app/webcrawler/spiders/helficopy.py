@@ -45,7 +45,7 @@ class HelficopySpider(scrapy.Spider):
         self.all_start_time = None  # Initialize the all_start_time
         self.start_time = None  # Initialize the start_time
         self.current_directory = os.getcwd()  # Get current working directory
-        self.relative_folder_path = 'downloaded/' # Relative path to the folder to crawl
+        self.relative_folder_path = 'downloaded/ro/' # Relative path to the folder to crawl
         self.website_path = website_path # Website path from config.py
         self.folder_path = os.path.join(self.current_directory, self.relative_folder_path, self.website_path) # Make the folder_path absolute
 

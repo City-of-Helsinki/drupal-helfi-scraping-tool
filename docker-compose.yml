@@ -2,7 +2,10 @@ services:
   scrapy_service:
     build: .
     volumes:
-      - ./app:/usr/src/app
+      - ./app:/usr/src/app:ro,cached
+      - ./kopio.hel.fi:/usr/src/app/downloaded/rw
+      - ./kopio.hel.fi:/usr/src/app/downloaded/ro:ro,cached
+      - ./result:/usr/src/result
     user: ${MY_UID}:${MY_GID}
     tty: true
     stdin_open: true
