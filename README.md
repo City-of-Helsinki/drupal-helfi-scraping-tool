@@ -56,7 +56,7 @@ When I want to use this tool, I normally do the following:
 
 * Start the container if it's not already running `make start`
 * If I have not run the download command for a while (data updates once per day), I run `make download`
-* Copy `app/crawls/_example.ph` to a new file in the same folder with a descriptive name
+* Copy `app/crawls/_example.py` to a new file in the same folder with a descriptive name
   * For example: `app/crawls/list-of-links.py`
 * Modify the new file to reduce the files to be searched as small as possible using filename and filecontents patterns
   * For example: `regex_content_include_pattern = r'component--list-of-links'`
