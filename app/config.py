@@ -10,7 +10,13 @@ module_name = f'crawls.{scrape_module}'
 # Dynamically import the module
 try:
     # Attempt to dynamically import the chosen module
-    module = importlib.import_module(module_name)
+    if scrape_module.startswith('custom/'):
+      custom_module_name = scrape_module.split('/')[1]
+      module = importlib.import_module(f'crawls.custom.{custom_module_name}')
+    elif scrape_module == 'custom':
+      module = importlib.import_module(f'crawls.{scrape_module}')
+    else:
+      module = importlib.import_module(module_name)
     print(f"Using crawl module: {scrape_module}")
 except ModuleNotFoundError:
     # Fallback to 'all' if the chosen module is not found
