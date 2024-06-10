@@ -56,8 +56,8 @@ When I want to use this tool, I normally do the following:
 
 * Start the container if it's not already running `make start`
 * If I have not run the download command for a while (data updates once per day), I run `make download`
-* Copy `app/crawls/_example.py` to a new file in the same folder with a descriptive name
-  * For example: `app/crawls/list-of-links.py`
+* Copy `app/crawls/custom/_example.py` to a new file in `app/crawls/custom/` folder with a descriptive name
+  * For example: `cp app/crawls/custom/_example.py app/crawls/custom/list-of-links.py`
 * Modify the new file to reduce the files to be searched as small as possible using filename and filecontents patterns
   * For example: `regex_content_include_pattern = r'component--list-of-links'`
 * Create an CSS selector to match the HTML elements of interest
@@ -67,8 +67,9 @@ When I want to use this tool, I normally do the following:
   * For example: `'url': url,` and `'text': match.get_text().strip(),`
   * This would print url as many times there are list-of-links on the site.
 * Save my changes to the module file, then run the scrape
-  * For example: `make scrape list-of-links`
+  * For example: `make scrape custom/list-of-links`
 * Check the matches from the command line and from the resulting `app/scraped_data.json` file for any bugs in my filters.
+* If you want to share the new `list-of-links` script, copy it to the folder `app/crawls/` and commit it. It can now be run with `make scrape list-of-links`
 
 ### Tips
 
@@ -98,7 +99,8 @@ There are some ready made modules that have answered a question I have had, feel
 
 Here's a table of the current modules with their matches and processing time on my machine. These times and matches will probably vary between data date and computer.
 
-| Command                           | Description                                                      |  Time  | Matches |
+The initial step of filtering files based on filename or contents is faster on Linux based Dockers probably due to faster file IO within docker. The scraping is faster on faster CPU. These numbers are from an crappy laptop running Linux.
+
 |-----------------------------------|------------------------------------------------------------------|:------:|:-------:|
 | `make scrape all`                 | This command gets urls to all pages, including paged links.      | 20 min |   22877 |
 | `make scrape all_unpaged`         | Same as above, but paging is removed before scraping.            | 14 min |   16174 |

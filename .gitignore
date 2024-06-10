@@ -2,4 +2,5 @@
 app/downloaded
 app/scraped_data.json
 app/crawls/custom/*
+!app/crawls/custom/_example.py
 !app/crawls/custom/README.md
