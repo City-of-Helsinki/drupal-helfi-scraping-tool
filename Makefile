@@ -14,13 +14,13 @@ DOCKER_COMPOSE = MY_UID=${MY_UID} MY_GID=${MY_GID} ${DOCKER_COMPOSE_CMD}
 # Default target
 .PHONY: help
 help:
-	@echo "Usage: make {env|start|stop|download|scrape <scrapeModule>}"
+	@echo "Usage: make {env|build|download|scrape <scrapeModule>}"
 	@echo ""
 	@echo "Available scrape modules:"
 	@ls -1 app/crawls | sed 's/\.py$$//' | sed 's/^/ - /'
 
 # Targets for docker compose commands
-.PHONY: start stop download scrape env list
+.PHONY: build download scrape env list
 
 # Generic target to handle additional arguments
 define run_target
@@ -42,11 +42,8 @@ env:
 	@echo "DOCKER_COMPOSE=${DOCKER_COMPOSE}"
 	@echo "SCRAPE_MODULE=$(filter-out $@,$(MAKECMDGOALS))"
 
-start:
-	@${DOCKER_COMPOSE} up --build
-
-stop:
-	@${DOCKER_COMPOSE} down
+build:
+	@${DOCKER_COMPOSE} build
 
 download:
 	@${DOCKER_COMPOSE} run scrapy_service download

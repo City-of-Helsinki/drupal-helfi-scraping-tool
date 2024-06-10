@@ -16,8 +16,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Copy the rest of the code into the image
-COPY . .
-
 # Set the entrypoint script as the default command to execute
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

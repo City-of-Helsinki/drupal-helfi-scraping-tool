@@ -33,9 +33,8 @@ This scraping tool helps to fill that need.
 1. Clone this repository
 2. Create environment variables `cp .env.local.example .env.local`
 3. Edit environment variables, at least add the DOWNLOAD_URL
-4. Run `make start` to create docker container
-5. Run `make download` to get the latest clone of the website.
-6. Read usage instructions below
+4. Run `make download` to get the latest clone of the website.
+5. Read usage instructions below
 
 ## Usage
 
@@ -43,18 +42,16 @@ This tool is used to scrape data from Drupal Helfi sites. It uses the [Scrapy](h
 
 ### Commands
 
-* `make start` starts the container and copies potential previously downloaded files in it
-* `make stop` stops the container, it does not remove files from filesystem
 * `make download` downloads latest data for scraping
 * `make scrape <scrape_module>` scrapes the downloaded data using given module rules (see below)
 * `make list` lists available scrape modules
 * `make env` lists env settings as the tool sees them, useful for debugging if the tool does not work
+* `make build` re-creates docker image (e.g. when updating python dependencies).
 
 ### Normal usage
 
 When I want to use this tool, I normally do the following:
 
-* Start the container if it's not already running `make start`
 * If I have not run the download command for a while (data updates once per day), I run `make download`
 * Copy `app/crawls/custom/_example.py` to a new file in `app/crawls/custom/` folder with a descriptive name
   * For example: `cp app/crawls/custom/_example.py app/crawls/custom/list-of-links.py`
@@ -69,6 +66,7 @@ When I want to use this tool, I normally do the following:
 * Save my changes to the module file, then run the scrape
   * For example: `make scrape custom/list-of-links`
 * Check the matches from the command line and from the resulting `app/scraped_data.json` file for any bugs in my filters.
+* If `.env.local` file is changed, or `docker/requirements.txt` is updated, run `make build`.
 * If you want to share the new `list-of-links` script, copy it to the folder `app/crawls/` and commit it. It can now be run with `make scrape list-of-links`
 
 ### Tips
