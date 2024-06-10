@@ -68,6 +68,7 @@ When I want to use this tool, I normally do the following:
 * Check the matches from the command line and from the resulting `app/scraped_data.json` file for any bugs in my filters.
 * If `.env.local` file is changed, or `docker/requirements.txt` is updated, run `make build`.
 * If you want to share the new `list-of-links` script, copy it to the folder `app/crawls/` and commit it. It can now be run with `make scrape list-of-links`
+* If `.env.local` file is changed, or `docker/requirements.txt` is updated, run `make build`.
 
 ### Tips
 

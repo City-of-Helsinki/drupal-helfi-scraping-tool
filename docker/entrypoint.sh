@@ -5,6 +5,11 @@ if [ -z "${DOWNLOAD_URL}" ]; then
   exit 1
 fi
 
+if [ -z "${DOWNLOAD_URL}" ]; then
+  echo "DOWNLOAD_URL is not set. Edit .env.local and then run make build"
+  exit 1
+fi
+
 SCRAPE_MODULE=${SCRAPE_MODULE:-all}
 
 case "$1" in
