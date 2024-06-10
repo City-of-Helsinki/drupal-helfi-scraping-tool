@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 if [ -z "${DOWNLOAD_URL}" ]; then
   echo "DOWNLOAD_URL is not set. Edit .env.local and then run make build"
