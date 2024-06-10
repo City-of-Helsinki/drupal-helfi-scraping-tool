@@ -1,3 +1,5 @@
 .env.local
 app/downloaded
 app/scraped_data.json
+app/crawls/custom/*
+!app/crawls/custom/README.md
