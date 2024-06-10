@@ -7,7 +7,5 @@ services:
     tty: true
     stdin_open: true
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
-    environment:
-      DOWNLOAD_URL: "${DOWNLOAD_URL}"
     env_file:
       - .env.local
