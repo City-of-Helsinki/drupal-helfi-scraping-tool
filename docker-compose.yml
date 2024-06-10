@@ -1,4 +1,3 @@
-version: '4'
 services:
   scrapy_service:
     build: .
