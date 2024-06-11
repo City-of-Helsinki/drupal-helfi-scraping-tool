@@ -99,6 +99,7 @@ Here's a table of the current modules with their matches and processing time on 
 
 The initial step of filtering files based on filename or contents is faster on Linux based Dockers probably due to faster file IO within docker. The scraping is faster on faster CPU. These numbers are from an crappy laptop running Linux.
 
+| Command                           | Explanation                                                      | Time   | Matches |
 |-----------------------------------|------------------------------------------------------------------|:------:|:-------:|
 | `make scrape all`                 | This command gets urls to all pages, including paged links.      | 20 min |   22877 |
 | `make scrape all_unpaged`         | Same as above, but paging is removed before scraping.            | 14 min |   16174 |
