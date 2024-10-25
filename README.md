@@ -117,5 +117,6 @@ The initial step of filtering files based on filename or contents is faster on L
 | `make scrape news_2023`           | List of all news done in 2023                                    |  2 min |    2074 |
 | `make scrape quotes`              | All quotes on site                                               |  9 sec |     148 |
 | `make scrape rekry_query`         | All links to rekry searches                                      | 22 sec |       0 |
+| `make scrape splattaprodlinks`    | Find potentially broken splattaprod links                        |  6 min |     614 |
 | `make scrape tables`              | All pages that contain tables                                    | 17 sec |     559 |
 | `make scrape user_edited_content` | All spans in use inside user_edited_content                      | 23 min |   22371 |

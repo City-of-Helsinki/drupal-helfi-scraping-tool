@@ -13,6 +13,8 @@ exclude_paging = '(\d[a-f\d][a-f\d][a-f\d]|[a-f\d]\d[a-f\d][a-f\d]|[a-f\d][a-f\d
 # What files to exluce (After inclusion) based on path
 regex_path_exclude_pattern =  r''+exclude_paging+''
 
+regex_content_include_pattern = r'announcement'
+
 # Custom beautiful soup loop function
 def custom_soup_and_loop_logic(spider, response_body, url, BeautifulSoup):
     soup = BeautifulSoup(response_body, 'html.parser') # Create a BeautifulSoup object from the HTML content
