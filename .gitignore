@@ -7,3 +7,6 @@ app/crawls/custom/*
 
 # Ignore folders created by JetBrains IDEs.
 .idea/*
+
+projects/*
+!projects/.keep

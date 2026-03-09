@@ -3,6 +3,7 @@ services:
     build: .
     volumes:
       - ./app:/usr/src/app
+      - ./projects:/projects
     user: ${MY_UID}:${MY_GID}
     tty: true
     stdin_open: true
