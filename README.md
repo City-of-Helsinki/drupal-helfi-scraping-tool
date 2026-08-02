@@ -44,6 +44,7 @@ This tool is used to scrape data from Drupal Helfi sites. It uses the [Scrapy](h
 
 * `make download` downloads latest data for scraping
 * `make scrape <scrape_module>` scrapes the downloaded data using given module rules (see below)
+* `make scrape <scrape_module> SCRAPE_WORKERS=4` same, but limits how many CPU cores are used
 * `make list` lists available scrape modules
 * `make env` lists env settings as the tool sees them, useful for debugging if the tool does not work
 * `make build` re-creates docker image (e.g. when updating python dependencies).
@@ -95,28 +96,24 @@ To keep the scraping time sane, follow these steps.
 
 There are some ready made modules that have answered a question I have had, feel free to use them as an inspiration or as a basis for further exploration.
 
-Here's a table of the current modules with their matches and processing time on my machine. These times and matches will probably vary between data date and computer.
-
-The initial step of filtering files based on filename or contents is faster on Linux based Dockers probably due to faster file IO within docker. The scraping is faster on faster CPU. These numbers are from an crappy laptop running Linux.
-
-| Command                           | Explanation                                                      | Time   | Matches |
-|-----------------------------------|------------------------------------------------------------------|:------:|:-------:|
-| `make scrape all`                 | This command gets urls to all pages, including paged links.      | 20 min |   22877 |
-| `make scrape all_unpaged`         | Same as above, but paging is removed before scraping.            | 14 min |   16174 |
-| `make scrape alt_original`        | How the alt-texts get altered with the photographer information. |  2 min |    3752 |
-| `make scrape announcements`       | All announcements and their texts                                | 14 min |     133 |
-| `make scrape contact_card_img`    | Contact card image styles                                        |  5 sec |     100 |
-| `make scrape contact_card`        | Contact card person descriptions                                 | 14 sec |     277 |
-| `make scrape cross_lang_links`    | Internal links that point to another language in text content.   | 30 min |     961 |
-| `make scrape empty_headings`      | Headings with only whitespace                                    | 16 min |      16 |
-| `make scrape external_icon`       | CKEditor created links with external icon                        |  7 sec |       2 |
-| `make scrape image_caption`       | Image caption text content                                       |  6 min |    9320 |
-| `make scrape img`                 | Figuring out all image classes with the exclusion method         | 15 min |    1681 |
-| `make scrape internal_links`      | List all internal links (helps to create vector map)             | 18 min |  334196 |
-| `make scrape liftup_button`       | Liftup with image secondary elements that have button in them    |  9 sec |       0 |
-| `make scrape news_2023`           | List of all news done in 2023                                    |  2 min |    2074 |
-| `make scrape quotes`              | All quotes on site                                               |  9 sec |     148 |
-| `make scrape rekry_query`         | All links to rekry searches                                      | 22 sec |       0 |
-| `make scrape splattaprodlinks`    | Find potentially broken splattaprod links                        |  6 min |     614 |
-| `make scrape tables`              | All pages that contain tables                                    | 17 sec |     559 |
-| `make scrape user_edited_content` | All spans in use inside user_edited_content                      | 23 min |   22371 |
+| Command                           | Explanation                                                      | Matches |
+|-----------------------------------|------------------------------------------------------------------|:-------:|
+| `make scrape all`                 | This command gets urls to all pages, including paged links.      |   22877 |
+| `make scrape all_unpaged`         | Same as above, but paging is removed before scraping.            |   16174 |
+| `make scrape alt_original`        | How the alt-texts get altered with the photographer information. |    3752 |
+| `make scrape announcements`       | All announcements and their texts                                |     133 |
+| `make scrape contact_card_img`    | Contact card image styles                                        |     100 |
+| `make scrape contact_card`        | Contact card person descriptions                                 |     277 |
+| `make scrape cross_lang_links`    | Internal links that point to another language in text content.   |     961 |
+| `make scrape empty_headings`      | Headings with only whitespace                                    |      16 |
+| `make scrape external_icon`       | CKEditor created links with external icon                        |       2 |
+| `make scrape image_caption`       | Image caption text content                                       |    9320 |
+| `make scrape img`                 | Figuring out all image classes with the exclusion method         |    1681 |
+| `make scrape internal_links`      | List all internal links (helps to create vector map)             |  334196 |
+| `make scrape liftup_button`       | Liftup with image secondary elements that have button in them    |       0 |
+| `make scrape news_2023`           | List of all news done in 2023                                    |    2074 |
+| `make scrape quotes`              | All quotes on site                                               |     148 |
+| `make scrape rekry_query`         | All links to rekry searches                                      |       0 |
+| `make scrape splattaprodlinks`    | Find potentially broken splattaprod links                        |     614 |
+| `make scrape tables`              | All pages that contain tables                                    |     559 |
+| `make scrape user_edited_content` | All spans in use inside user_edited_content                      |   22371 |
