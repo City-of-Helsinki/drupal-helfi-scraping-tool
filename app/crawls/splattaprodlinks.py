@@ -15,8 +15,8 @@ regex_content_exclude_pattern = None # This turns off exclude filtering
 # regex_path_include_pattern = r'/kaupunkiymparisto-ja-liikenne/' # Liikenne
 
 # Exclude helpers
-exclude_paging = '(\d[a-f\d][a-f\d][a-f\d]|[a-f\d]\d[a-f\d][a-f\d]|[a-f\d][a-f\d]\d[a-f\d]|[a-f\d][a-f\d][a-f\d]\d|e,location|adba|aeba|bdfb|ddbc|eddd|efde|fadc|fcac|fdfa|feab|ffdd|efbf|fddf|fffc|dfaa).html$'
-exclude_news = '(\/uutiset\/|\/nyheter\/|\/news\/)'
+exclude_paging = r'(\d[a-f\d][a-f\d][a-f\d]|[a-f\d]\d[a-f\d][a-f\d]|[a-f\d][a-f\d]\d[a-f\d]|[a-f\d][a-f\d][a-f\d]\d|e,location|adba|aeba|bdfb|ddbc|eddd|efde|fadc|fcac|fdfa|feab|ffdd|efbf|fddf|fffc|dfaa).html$'
+exclude_news = r'(\/uutiset\/|\/nyheter\/|\/news\/)'
 exclude_error = '(illustration_error_page_403_401|illustration_error_page_404)'
 
 # What files to exluce (After inclusion) based on path
