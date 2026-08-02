@@ -30,10 +30,9 @@ This scraping tool helps to fill that need.
 ### Install steps
 
 1. Clone this repository
-2. Create environment variables `cp .env.local.example .env.local`
-3. Edit environment variables, at least add the DOWNLOAD_URL
-4. Run `./scrape download` to get the latest clone of the website.
-5. Read usage instructions below
+2. Run `./scrape download <url>` to get the latest clone of the website
+3. Read usage instructions below
+4. `cp .env.local.example .env.local` and edit as needed.
 
 ## Usage
 
@@ -41,7 +40,7 @@ This tool is used to scrape data from Drupal Helfi sites. It uses the [Scrapy](h
 
 ### Commands
 
-* `./scrape download` downloads latest data for scraping
+* `./scrape download <url>` downloads latest data for scraping from the given zip file
 * `./scrape scrape <scrape_module>` scrapes the downloaded data using given module rules (see below)
 * `./scrape scrape <scrape_module> --workers 4` same, but limits how many CPU cores are used
 * `./scrape scrape <scrape_module> --output results.json` writes somewhere other than `app/scraped_data.json`
@@ -62,7 +61,7 @@ line program in `app/cli.py`. If you already have python and the dependencies fr
 python app/cli.py scrape quotes --workers 4
 ```
 
-Both do the same thing and read the same `.env.local`.
+Both do the same thing.
 
 ### Normal usage
 
@@ -82,7 +81,7 @@ When I want to use this tool, I normally do the following:
 * Save my changes to the module file, then run the scrape
   * For example: `./scrape scrape custom/list-of-links`
 * Check the matches from the command line and from the resulting `app/scraped_data.json` file for any bugs in my filters.
-* If `.env.local` file is changed, or `docker/requirements.txt` is updated, run `./scrape build`.
+* If `docker/requirements.txt` or `Dockerfile` is updated, run `./scrape build`.
 * If you want to share the new `list-of-links` script, copy it to the folder `app/crawls/` and commit it. It can now be run with `./scrape scrape list-of-links`
 
 ### Tips

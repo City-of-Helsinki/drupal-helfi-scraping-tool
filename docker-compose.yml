@@ -8,4 +8,5 @@ services:
     tty: true
     stdin_open: true
     env_file:
-      - .env.local
+      - path: .env.local
+        required: false

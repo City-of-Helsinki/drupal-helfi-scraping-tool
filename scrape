@@ -18,13 +18,6 @@ MY_GID=${MY_GID:-$(id -g)}
 DOCKER_COMPOSE_CMD=${DOCKER_COMPOSE_CMD:-docker compose}
 export MY_UID MY_GID
 
-# The container reads DOWNLOAD_URL from here.
-if [ ! -f .env.local ]; then
-  echo "Creating .env.local from .env.local.example"
-  cp .env.local.example .env.local
-  echo "Add your DOWNLOAD_URL to .env.local before running 'download'."
-fi
-
 if [ "${1:-}" = "build" ]; then
   shift
   exec $DOCKER_COMPOSE_CMD build "$@"

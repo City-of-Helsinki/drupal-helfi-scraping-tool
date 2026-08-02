@@ -11,9 +11,7 @@ import tempfile
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
-REPO_ROOT = APP_DIR.parent
 DOWNLOADED_DIR = APP_DIR / 'downloaded'
-ENV_FILE = REPO_ROOT / '.env.local'
 
 LOG_LEVELS = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
 
@@ -30,27 +28,6 @@ from config import CrawlModuleError, available_modules, load_crawl_config
 
 class CommandError(Exception):
     """A problem worth reporting to the user without a traceback."""
-
-
-def load_env_file(path=ENV_FILE):
-    """Reads .env.local, the way docker compose does for the container.
-
-    Variables that are already set win, so the compose env_file and an explicit
-    export both keep working.
-    """
-    if not path.is_file():
-        return
-
-    for line in path.read_text(encoding='utf-8').splitlines():
-        line = line.strip()
-        if not line or line.startswith('#'):
-            continue
-
-        key, separator, value = line.partition('=')
-        if not separator:
-            continue
-
-        os.environ.setdefault(key.strip(), value.strip().strip('"\''))
 
 
 def run_command(command):
@@ -98,25 +75,20 @@ def command_env(args):
     except ImportError:
         default_workers = 'unknown, dependencies are missing'
 
-    download_url = os.environ.get('DOWNLOAD_URL', '(not set)')
     downloaded_state = 'present' if DOWNLOADED_DIR.is_dir() else 'missing, run download'
 
     print(f'app directory:    {APP_DIR}')
     print(f'downloaded data:  {DOWNLOADED_DIR} ({downloaded_state})')
     print(f'default output:   {DEFAULT_OUTPUT}')
-    print(f'.env.local:       {ENV_FILE} ({"found" if ENV_FILE.is_file() else "not found"})')
-    print(f'DOWNLOAD_URL:     {download_url}')
     print(f'default workers:  {default_workers}')
     print(f'python:           {sys.version.split()[0]}')
     print(f'scrapy:           {scrapy_version}')
 
 
 def command_download(args):
-    url = args.url or os.environ.get('DOWNLOAD_URL')
+    url = args.url
     if not url:
-        raise CommandError(
-            f'DOWNLOAD_URL is not set. Add it to {ENV_FILE}, or pass --url.'
-        )
+        raise CommandError('No URL given. Run: scrape download <url>')
 
     with tempfile.TemporaryDirectory() as temporary_directory:
         archive = Path(temporary_directory) / 'downloaded.zip'
@@ -237,11 +209,16 @@ def build_parser():
         'download',
         help='download the latest copy of the site to scrape',
         description='Download and unpack the latest copy of the site into app/downloaded.',
+        epilog='The url defaults to DOWNLOAD_URL environment variable if set',
     )
+    download_url = os.environ.get('DOWNLOAD_URL')
     download.add_argument(
-        '--url',
+        'url',
+        nargs='?',
+        default=download_url,
         metavar='URL',
-        help='zip file to download (default: DOWNLOAD_URL from .env.local)',
+        # Only worth mentioning when there is something to mention.
+        help='zip file to download' + (f' (default: {download_url})' if download_url else ''),
     )
     download.set_defaults(handler=command_download)
 
@@ -258,8 +235,6 @@ def build_parser():
 
 
 def main(argv=None):
-    load_env_file()
-
     parser = build_parser()
     args = parser.parse_args(argv)
 
