@@ -15,21 +15,18 @@ from itemadapter import ItemAdapter
 import json
 
 class JsonExportPipeline:
-    def open_spider(self, spider):
+    def open_spider(self):
         self.file = open('scraped_data.json', 'w', encoding='utf-8')
         self.file.write('[')
         self.item_count = 0  # Initialize a counter for the items
 
-    def close_spider(self, spider):
-        # if self.item_count % 50 != 0:
-        #     # This is to remove the trailing comma for the last batch if it's not exactly 50 items
-        #     self.file.seek(self.file.tell() - 2, 0)
+    def close_spider(self):
         self.file.write('\n]')
         self.file.close()
 
-    def process_item(self, item, spider):
-        line = json.dumps(dict(item), ensure_ascii=False) + ",\n"
-        self.file.write(line)
+    def process_item(self, item):
+        separator = '\n' if self.item_count == 0 else ',\n'
+        self.file.write(separator + json.dumps(dict(item), ensure_ascii=False))
 
         self.item_count += 1  # Increment the item counter
 

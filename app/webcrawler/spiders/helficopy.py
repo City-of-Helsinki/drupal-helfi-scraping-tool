@@ -49,7 +49,7 @@ class HelficopySpider(scrapy.Spider):
         self.website_path = website_path # Website path from config.py
         self.folder_path = os.path.join(self.current_directory, self.relative_folder_path, self.website_path) # Make the folder_path absolute
 
-    def start_requests(self):
+    async def start(self):
 
         print(f"Scraping files from {self.folder_path}")
 
