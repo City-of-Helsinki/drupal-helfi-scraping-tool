@@ -25,7 +25,6 @@ This scraping tool helps to fill that need.
 ### Requirements
 
 * Docker
-* Make
 * ~ 3 gigs of free space for the site clone as of June 2024
 
 ### Install steps
@@ -33,7 +32,7 @@ This scraping tool helps to fill that need.
 1. Clone this repository
 2. Create environment variables `cp .env.local.example .env.local`
 3. Edit environment variables, at least add the DOWNLOAD_URL
-4. Run `make download` to get the latest clone of the website.
+4. Run `./scrape download` to get the latest clone of the website.
 5. Read usage instructions below
 
 ## Usage
@@ -42,18 +41,34 @@ This tool is used to scrape data from Drupal Helfi sites. It uses the [Scrapy](h
 
 ### Commands
 
-* `make download` downloads latest data for scraping
-* `make scrape <scrape_module>` scrapes the downloaded data using given module rules (see below)
-* `make scrape <scrape_module> SCRAPE_WORKERS=4` same, but limits how many CPU cores are used
-* `make list` lists available scrape modules
-* `make env` lists env settings as the tool sees them, useful for debugging if the tool does not work
-* `make build` re-creates docker image (e.g. when updating python dependencies).
+* `./scrape download` downloads latest data for scraping
+* `./scrape scrape <scrape_module>` scrapes the downloaded data using given module rules (see below)
+* `./scrape scrape <scrape_module> --workers 4` same, but limits how many CPU cores are used
+* `./scrape scrape <scrape_module> --output results.json` writes somewhere other than `app/scraped_data.json`
+* `./scrape list` lists available scrape modules
+* `./scrape env` lists settings as the tool sees them, useful for debugging if the tool does not work
+* `./scrape build` re-creates docker image (e.g. when updating python dependencies).
+
+Add `--help` to any of them to see the full set of options.
+
+### Running without Docker
+
+`./scrape` is a small wrapper that runs the tool inside a container, so that Docker
+is the only thing you need to have installed. The tool itself is a normal command
+line program in `app/cli.py`. If you already have python and the dependencies from
+`docker/requirements.txt`, you can skip the container and call it directly:
+
+```
+python app/cli.py scrape quotes --workers 4
+```
+
+Both do the same thing and read the same `.env.local`.
 
 ### Normal usage
 
 When I want to use this tool, I normally do the following:
 
-* If I have not run the download command for a while (data updates once per day), I run `make download`
+* If I have not run the download command for a while (data updates once per day), I run `./scrape download`
 * Copy `app/crawls/custom/_example.py` to a new file in `app/crawls/custom/` folder with a descriptive name
   * For example: `cp app/crawls/custom/_example.py app/crawls/custom/list-of-links.py`
 * Modify the new file to reduce the files to be searched as small as possible using filename and filecontents patterns
@@ -65,10 +80,10 @@ When I want to use this tool, I normally do the following:
   * For example: `'url': url,` and `'text': match.get_text().strip(),`
   * This would print url as many times there are list-of-links on the site.
 * Save my changes to the module file, then run the scrape
-  * For example: `make scrape custom/list-of-links`
+  * For example: `./scrape scrape custom/list-of-links`
 * Check the matches from the command line and from the resulting `app/scraped_data.json` file for any bugs in my filters.
-* If `.env.local` file is changed, or `docker/requirements.txt` is updated, run `make build`.
-* If you want to share the new `list-of-links` script, copy it to the folder `app/crawls/` and commit it. It can now be run with `make scrape list-of-links`
+* If `.env.local` file is changed, or `docker/requirements.txt` is updated, run `./scrape build`.
+* If you want to share the new `list-of-links` script, copy it to the folder `app/crawls/` and commit it. It can now be run with `./scrape scrape list-of-links`
 
 ### Tips
 
@@ -94,7 +109,7 @@ To keep the scraping time sane, follow these steps.
 
 ### Scrape modules
 
-There are some ready made modules that have answered a question I have had, feel free to use them as an inspiration or as a basis for further exploration.
+There are some ready made modules that have answered a question I have had, feel free to use them as an inspiration or as a basis for further exploration. Match counts are from 2024.
 
 | Command                           | Explanation                                                      | Matches |
 |-----------------------------------|------------------------------------------------------------------|:-------:|

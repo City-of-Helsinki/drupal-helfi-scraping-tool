@@ -16,9 +16,5 @@ RUN \
     pip install --no-cache-dir -r requirements.txt; \
     apk del .py_deps;
 
-# Copy the entrypoint script and make it executable
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# Set the entrypoint script as the default command to execute
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# The application itself is bind mounted over /usr/src/app at runtime.
+ENTRYPOINT ["python", "/usr/src/app/cli.py"]

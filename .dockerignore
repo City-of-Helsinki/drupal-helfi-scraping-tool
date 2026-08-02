@@ -1,0 +1,9 @@
+# The image only needs docker/requirements.txt. Everything the tool works on is
+# bind mounted at runtime.
+app/
+projects/
+.git/
+.idea/
+.env.local
+
+!docker/requirements.txt

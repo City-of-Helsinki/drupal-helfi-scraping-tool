@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# Runs the scraping tool inside Docker, so that python does not have to be
+# installed.
+#
+# Overridable:
+#   MY_UID / MY_GID     which user the container writes files as
+#   DOCKER_COMPOSE_CMD  e.g. 'docker-compose' or 'podman compose'
+
+set -eu
+
+# Work from the repository, not from wherever this was called.
+REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$REPO_ROOT"
+
+MY_UID=${MY_UID:-$(id -u)}
+MY_GID=${MY_GID:-$(id -g)}
+DOCKER_COMPOSE_CMD=${DOCKER_COMPOSE_CMD:-docker compose}
+export MY_UID MY_GID
+
+# The container reads DOWNLOAD_URL from here.
+if [ ! -f .env.local ]; then
+  echo "Creating .env.local from .env.local.example"
+  cp .env.local.example .env.local
+  echo "Add your DOWNLOAD_URL to .env.local before running 'download'."
+fi
+
+if [ "${1:-}" = "build" ]; then
+  shift
+  exec $DOCKER_COMPOSE_CMD build "$@"
+fi
+
+export COMPOSE_PROGRESS=quiet
+
+exec $DOCKER_COMPOSE_CMD run --rm scrapy_service "$@"

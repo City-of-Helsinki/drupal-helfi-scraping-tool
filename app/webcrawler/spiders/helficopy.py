@@ -1,12 +1,3 @@
-from config import (
-    website_path,
-    regex_content_include_pattern,
-    regex_content_exclude_pattern,
-    regex_path_include_pattern,
-    regex_path_exclude_pattern,
-    custom_soup_and_loop_logic,
-)
-
 import multiprocessing
 import os
 import scrapy
@@ -14,13 +5,15 @@ import signal
 import time  # Import the time library
 import re  # import the regex library
 from bs4 import BeautifulSoup
+from pathlib import Path
 from w3lib.url import safe_url_string
 
-# Compile once instead of leaning on the re module cache for every file.
-path_include_re = re.compile(regex_path_include_pattern) if regex_path_include_pattern is not None else None
-path_exclude_re = re.compile(regex_path_exclude_pattern) if regex_path_exclude_pattern is not None else None
-content_include_re = re.compile(regex_content_include_pattern) if regex_content_include_pattern is not None else None
-content_exclude_re = re.compile(regex_content_exclude_pattern) if regex_content_exclude_pattern is not None else None
+SCRAPER_VERSION = '2.1'
+
+# The scraper reads a copy of the site from app/downloaded/. Anchored to this
+# file rather than the working directory so the spider can be run from anywhere.
+APP_DIR = Path(__file__).resolve().parents[2]
+DOWNLOADED_DIR = APP_DIR / 'downloaded'
 
 def human_readable_time(seconds):
     """Converts time in seconds to a human-readable string."""
@@ -34,15 +27,38 @@ def human_readable_time(seconds):
     else:
         return f"{int(seconds)}s"
 
-def worker_count():
-    """How many worker processes to use. Override with the SCRAPE_WORKERS env variable."""
-    configured = os.getenv('SCRAPE_WORKERS')
+def site_folder_path(website_path):
+    """The folder holding the copy of the given site."""
+    return str(DOWNLOADED_DIR / website_path)
+
+def worker_count(configured=None):
+    """How many worker processes to use. Defaults to every core available."""
     if configured:
         return max(1, int(configured))
     try:
         return max(1, len(os.sched_getaffinity(0)))
     except AttributeError:  # not available on every platform
         return max(1, os.cpu_count() or 1)
+
+def compile_pattern(pattern):
+    """Compile once instead of leaning on the re module cache for every file."""
+    return re.compile(pattern) if pattern is not None else None
+
+class WorkerState:
+    """Everything a worker process needs to scrape a file on its own.
+
+    The crawl module is chosen at runtime, so this is built in the spider and
+    handed to the workers rather than living in module level globals.
+    """
+
+    def __init__(self, config, folder_path):
+        self.folder_path = folder_path
+        self.website_path = config.website_path
+        self.logic = config.custom_soup_and_loop_logic
+        self.path_include_re = compile_pattern(config.regex_path_include_pattern)
+        self.path_exclude_re = compile_pattern(config.regex_path_exclude_pattern)
+        self.content_include_re = compile_pattern(config.regex_content_include_pattern)
+        self.content_exclude_re = compile_pattern(config.regex_content_exclude_pattern)
 
 class SpiderProxy:
     """Stand-in for the spider handed to custom_soup_and_loop_logic inside a worker.
@@ -56,15 +72,13 @@ class SpiderProxy:
         self.website_path = website_path
         self.folder_path = folder_path
 
-# Per worker process state, filled in by init_worker().
-worker_folder_path = None
-worker_website_path = None
+# Filled in by init_worker(), once per worker process.
+worker = None
 
-def init_worker(folder_path, site_path):
+def init_worker(state):
     """Runs once in every worker process."""
-    global worker_folder_path, worker_website_path
-    worker_folder_path = folder_path
-    worker_website_path = site_path
+    global worker
+    worker = state
 
     # Forking inherits the shutdown handlers scrapy installed in the parent, which
     # would keep the workers alive when the pool tries to terminate them.
@@ -80,11 +94,11 @@ def filter_file(file_path):
         content = f.read()
 
     # Exclude the file if regex_content_exclude_pattern is found in the content
-    if content_exclude_re is not None and content_exclude_re.search(content):
+    if worker.content_exclude_re is not None and worker.content_exclude_re.search(content):
         return None
 
     # Include the file if regex_content_include_pattern is found in the content or not specified
-    if content_include_re is None or content_include_re.search(content):
+    if worker.content_include_re is None or worker.content_include_re.search(content):
         return file_path
 
     return None
@@ -93,7 +107,7 @@ def public_url(file_path):
     """Turns a local file path into the https url of the page it is a copy of."""
     # Matches what scrapy.Request did to the file:// url the spider used to yield.
     url = safe_url_string('file://' + file_path.replace("#", "%23"))[7:]
-    url = url.replace(worker_folder_path, "https://" + worker_website_path)
+    url = url.replace(worker.folder_path, "https://" + worker.website_path)
     return url.replace(".html", "")
 
 def scrape_file(file_path):
@@ -102,41 +116,41 @@ def scrape_file(file_path):
         body = f.read()
 
     url = public_url(file_path)
-    proxy = SpiderProxy(worker_website_path, worker_folder_path)
-    items = list(custom_soup_and_loop_logic(proxy, body, url, BeautifulSoup))
+    proxy = SpiderProxy(worker.website_path, worker.folder_path)
+    items = list(worker.logic(proxy, body, url, BeautifulSoup))
 
     return url, items, proxy.matches
 
 class HelficopySpider(scrapy.Spider):
     name = "helficopy"
 
-    print(f"Scraper v2.0")
-
     custom_settings = {
         'ITEM_PIPELINES': {'webcrawler.pipelines.JsonExportPipeline': 300},
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, config=None, workers=None, *args, **kwargs):
         super(HelficopySpider, self).__init__(*args, **kwargs)
         self.matches = 0
         self.total_files = 0
         self.processed_files = 0
         self.all_start_time = None  # Initialize the all_start_time
         self.start_time = None  # Initialize the start_time
-        self.current_directory = os.getcwd()  # Get current working directory
-        self.relative_folder_path = 'downloaded/' # Relative path to the folder to crawl
-        self.website_path = website_path # Website path from config.py
-        self.folder_path = os.path.join(self.current_directory, self.relative_folder_path, self.website_path) # Make the folder_path absolute
-        self.workers = worker_count()
+        self.config = config
+        self.website_path = config.website_path # Website path from the crawl module
+        self.folder_path = site_folder_path(self.website_path)
+        self.workers = worker_count(workers)
+        self.state = WorkerState(config, self.folder_path)
 
         # Reading files and parsing html is pure python work, so threads would just
         # queue up behind the GIL. Fork a pool of processes instead. Forking here,
         # before the item pipeline opens its output file, keeps the workers from
-        # inheriting a copy of it.
+        # inheriting a copy of it. Forking also means the state below is inherited
+        # as is, so the compiled patterns and the crawl module's own function do
+        # not have to survive pickling.
         self.pool = multiprocessing.get_context('fork').Pool(
             processes=self.workers,
             initializer=init_worker,
-            initargs=(self.folder_path, self.website_path),
+            initargs=(self.state,),
         )
 
     def closed(self, reason):
@@ -145,22 +159,24 @@ class HelficopySpider(scrapy.Spider):
 
     async def start(self):
 
+        print(f"Scraper v{SCRAPER_VERSION}")
+        print(f"Using crawl module: {self.config.name}")
         print(f"Scraping files from {self.folder_path} with {self.workers} workers")
 
         self.all_start_time = time.time()  # Record the start time
 
         # if use_path_regex:
-        if regex_path_include_pattern is not None:
-            print(f"Including file paths using pattern: {regex_path_include_pattern}")
+        if self.config.regex_path_include_pattern is not None:
+            print(f"Including file paths using pattern: {self.config.regex_path_include_pattern}")
 
-        if regex_path_exclude_pattern is not None:
-            print(f"Excluding file paths using pattern: {regex_path_exclude_pattern}")
+        if self.config.regex_path_exclude_pattern is not None:
+            print(f"Excluding file paths using pattern: {self.config.regex_path_exclude_pattern}")
 
-        if regex_content_include_pattern is not None:
-            print(f"Filtering file contents using pattern: {regex_content_include_pattern}")
+        if self.config.regex_content_include_pattern is not None:
+            print(f"Filtering file contents using pattern: {self.config.regex_content_include_pattern}")
 
-        if regex_content_exclude_pattern is not None:
-            print(f"Excluding file contents using pattern: {regex_content_exclude_pattern}")
+        if self.config.regex_content_exclude_pattern is not None:
+            print(f"Excluding file contents using pattern: {self.config.regex_content_exclude_pattern}")
 
         filtered_files = self.filtered_files()
         self.total_files = len(filtered_files)
@@ -185,6 +201,8 @@ class HelficopySpider(scrapy.Spider):
     def filtered_files(self):
         """The list of files to scrape, in os.walk order."""
         candidates = []
+        path_include_re = self.state.path_include_re
+        path_exclude_re = self.state.path_exclude_re
 
         # Path patterns are cheap, so they are applied while walking the folder.
         for root, dirs, files in os.walk(self.folder_path):
@@ -206,7 +224,7 @@ class HelficopySpider(scrapy.Spider):
 
         # Without content patterns there is nothing to look for inside the files,
         # so skip reading them altogether.
-        if content_include_re is None and content_exclude_re is None:
+        if self.state.content_include_re is None and self.state.content_exclude_re is None:
             return [path for path in candidates if os.path.isfile(path)]
 
         # Otherwise every file has to be read, which is what the workers are for.

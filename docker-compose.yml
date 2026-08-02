@@ -7,6 +7,5 @@ services:
     user: ${MY_UID}:${MY_GID}
     tty: true
     stdin_open: true
-    entrypoint: ["/usr/local/bin/entrypoint.sh"]
     env_file:
       - .env.local
