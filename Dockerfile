@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.11-alpine
+FROM python:3.14-alpine
 
 # Set environment variables (e.g., to make Python not write .pyc files)
 ENV PYTHONDONTWRITEBYTECODE 1
