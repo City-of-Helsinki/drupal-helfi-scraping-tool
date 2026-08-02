@@ -1,6 +1,7 @@
 # Check for .env.local file
 ifeq (,$(wildcard ./.env.local))
-$(error ".env.local file not found. Please create it by copying .env.local.example")
+$(info Creating .env.local from .env.local.example)
+$(shell cp -n .env.local.example .env.local)
 endif
 
 # Allow overriding of UID, GID, and Docker Compose command
