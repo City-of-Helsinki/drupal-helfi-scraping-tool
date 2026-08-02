@@ -150,6 +150,12 @@ def prune_non_html(root):
 
 
 def command_scrape(args):
+    # Without a module there is nothing to scrape, and the thing people are
+    # missing is the list of module names, so show that instead of a usage error.
+    if args.module is None:
+        args.parser.print_help()
+        return 1
+
     if args.workers is not None and args.workers < 1:
         raise CommandError('--workers has to be at least 1.')
 
@@ -203,7 +209,11 @@ def build_parser():
         epilog='Available crawl modules:\n' + module_list(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    scrape.add_argument('module', help="crawl module to use, e.g. quotes or custom/my-search")
+    scrape.add_argument(
+        'module',
+        nargs='?',
+        help="crawl module to use, e.g. quotes or custom/my-search",
+    )
     scrape.add_argument(
         '--workers',
         type=int,
@@ -221,7 +231,7 @@ def build_parser():
         choices=LOG_LEVELS,
         help='how noisy scrapy should be (default: ERROR)',
     )
-    scrape.set_defaults(handler=command_scrape)
+    scrape.set_defaults(handler=command_scrape, parser=scrape)
 
     download = subparsers.add_parser(
         'download',
