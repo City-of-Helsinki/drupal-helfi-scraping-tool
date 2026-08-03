@@ -4,16 +4,12 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
 import json
-from pathlib import Path
-
-# Where the results end up unless SCRAPED_DATA_OUTPUT says otherwise. Anchored to
-# this file so the output does not move with the working directory.
-DEFAULT_OUTPUT = Path(__file__).resolve().parents[1] / 'scraped_data.json'
 
 
 class JsonExportPipeline:
-    def __init__(self, output_path=None):
-        self.output_path = Path(output_path) if output_path else DEFAULT_OUTPUT
+    # The cli resolves --output into SCRAPED_DATA_OUTPUT before the crawl starts.
+    def __init__(self, output_path):
+        self.output_path = output_path
 
     @classmethod
     def from_crawler(cls, crawler):

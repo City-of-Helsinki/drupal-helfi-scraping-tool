@@ -18,7 +18,7 @@ This scraping tool helps to fill that need.
 * It scrapes the contents of the .html files
   * To make it faster, it can filter files to be scanned based on filename, filecontents
   * With the selected set of files, it performs a scrape using CSS selector
-* It returns the selected fields into  app/scraped_data.json file, that can be previewed even while the scraping is ongoing
+* It returns the selected fields into a `scraped_data.json` file in the working directory. The file can be previewed even while the scraping is ongoing
 
 ## Sites
 
@@ -65,7 +65,7 @@ This tool is used to scrape data from Drupal Helfi sites. It uses the [Scrapy](h
 * `./scrape sites download <site>` downloads the latest copy of a site
 * `./scrape scrape <site> <scrape_module>` scrapes a downloaded site using given module rules (see below)
 * `./scrape scrape <site> <scrape_module> --workers 4` same, but limits how many CPU cores are used
-* `./scrape scrape <site> <scrape_module> --output results.json` writes somewhere other than `app/scraped_data.json`
+* `./scrape scrape <site> <scrape_module> --output results.json` writes somewhere other than `scraped_data.json`
 * `./scrape list` lists available scrape modules
 * `./scrape env` lists settings as the tool sees them, useful for debugging if the tool does not work
 * `./scrape build` re-creates docker image (e.g. when updating python dependencies).
@@ -110,7 +110,7 @@ When I want to use this tool, I normally do the following:
   * This would print url as many times there are list-of-links on the site.
 * Save my changes to the module file, then run the scrape
   * For example: `./scrape scrape www.hel.fi custom/list-of-links`
-* Check the matches from the command line and from the resulting `app/scraped_data.json` file.
+* Check the matches from the command line and from the resulting `scraped_data.json` file.
 * If `docker/requirements.txt` or `Dockerfile` is updated, run `./scrape build`.
 * If you want to share the new `list-of-links` script, copy it to the folder `app/crawls/` and commit it. It can now be run with `./scrape scrape <site> list-of-links`
 

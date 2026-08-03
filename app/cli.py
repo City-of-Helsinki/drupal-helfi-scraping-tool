@@ -13,6 +13,9 @@ APP_DIR = Path(__file__).resolve().parent
 
 LOG_LEVELS = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
 
+# Relative, so a run writes into the directory it was started from.
+DEFAULT_OUTPUT = 'scraped_data.json'
+
 # crawls/ and webcrawler/ are imported by name.
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
@@ -78,8 +81,6 @@ def command_env(args):
     except ImportError:
         scrapy_version = 'not installed'
 
-    from webcrawler.pipelines import DEFAULT_OUTPUT
-
     # This is the command people run when something is wrong, so it reports
     # missing dependencies instead of failing on them.
     try:
@@ -102,7 +103,7 @@ def command_env(args):
     print(f'site copies:      {PROJECTS_DIR} ({copies})')
     print(f'site registry:    {REGISTRY_PATH} ({listed})')
     print(f'github token:     {token}')
-    print(f'default output:   {DEFAULT_OUTPUT}')
+    print(f'default output:   {os.path.abspath(DEFAULT_OUTPUT)}')
     print(f'default workers:  {default_workers}')
     print(f'python:           {sys.version.split()[0]}')
     print(f'scrapy:           {scrapy_version}')
@@ -169,21 +170,15 @@ def command_scrape(args):
 
     settings = get_project_settings()
     settings.set('LOG_LEVEL', args.log_level)
-    if args.output:
-        settings.set('SCRAPED_DATA_OUTPUT', os.path.abspath(args.output))
+    settings.set('SCRAPED_DATA_OUTPUT', os.path.abspath(args.output))
 
     process = CrawlerProcess(settings)
     crawler = process.create_crawler(HelficopySpider)
     process.crawl(crawler, config=config, workers=args.workers)
     process.start()
 
-    output_path = settings.get('SCRAPED_DATA_OUTPUT')
-    if not output_path:
-        from webcrawler.pipelines import DEFAULT_OUTPUT
-        output_path = DEFAULT_OUTPUT
-
     matches = getattr(crawler.spider, 'matches', 0)
-    print(f'Done, {matches} matches written to {output_path}')
+    print(f'Done, {matches} matches written to {settings.get("SCRAPED_DATA_OUTPUT")}')
 
 
 def build_parser():
@@ -225,7 +220,8 @@ def build_parser():
     scrape.add_argument(
         '--output',
         metavar='PATH',
-        help='where to write the results (default: app/scraped_data.json)',
+        default=DEFAULT_OUTPUT,
+        help=f'where to write the results (default: ./{DEFAULT_OUTPUT})',
     )
     scrape.add_argument(
         '--log-level',
