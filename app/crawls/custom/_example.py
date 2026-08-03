@@ -1,8 +1,10 @@
-# Website path
-website_path = 'www.hel.fi' # Use when you want to search all pages
-# website_path = 'www.hel.fi/fi' # Use when you want to limit search only to Finnish pages
-# website_path = 'www.hel.fi/sv' # Use when you want to limit search only to Swedish pages
-# website_path = 'www.hel.fi/en' # Use when you want to limit search only to English pages
+# The site is not set here, it is given on the command line:
+#
+#   ./scrape scrape www.hel.fi custom/_example     search all pages
+#   ./scrape scrape www.hel.fi/fi custom/_example  only the Finnish pages
+#   ./scrape scrape historia.hel.fi custom/_example  another site entirely
+#
+# Run './scrape sites' to see which sites have been downloaded.
 
 # By default all regex matching is off
 regex_path_include_pattern = None # This turns off include filtering

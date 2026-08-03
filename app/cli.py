@@ -3,15 +3,13 @@
 """
 
 import argparse
+import dataclasses
+import datetime
 import os
-import shutil
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
-DOWNLOADED_DIR = APP_DIR / 'downloaded'
 
 LOG_LEVELS = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
 
@@ -19,29 +17,23 @@ LOG_LEVELS = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
-# Lets scrapy find the project settings without relying on scrapy.cfg discovery,
-# which looks at the working directory.
+# Lets scrapy find the project settings without relying on scrapy.cfg discovery.
 os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'webcrawler.settings')
 
 from config import CrawlModuleError, available_modules, load_crawl_config
+from download import DownloadError, download_site, github_token
+from sites import (
+    PROJECTS_DIR,
+    PROJECTS_DIR_ENV,
+    REGISTRY_PATH,
+    SiteError,
+    registry,
+    site_domain,
+)
 
 
 class CommandError(Exception):
     """A problem worth reporting to the user without a traceback."""
-
-
-def run_command(command):
-    """Runs an external command, turning the usual failures into CommandError."""
-    # The child writes straight to the terminal, so anything still sitting in our
-    # own buffer has to go first or the output arrives out of order in a log.
-    sys.stdout.flush()
-
-    try:
-        subprocess.run(command, check=True)
-    except FileNotFoundError:
-        raise CommandError(f"'{command[0]}' is not installed.")
-    except subprocess.CalledProcessError as error:
-        raise CommandError(f"'{command[0]}' failed with exit code {error.returncode}.")
 
 
 def module_list():
@@ -56,6 +48,28 @@ def module_list():
 def command_list(args):
     print('Available crawl modules:')
     print(module_list())
+
+
+def command_sites(args):
+    print(f'Site copies in {PROJECTS_DIR}')
+    print()
+
+    for name, entry in sorted(registry.sites.items()):
+        modified = registry.downloaded_at(name)
+
+        if modified is None:
+            state = 'missing'
+        else:
+            state = datetime.date.fromtimestamp(modified).isoformat()
+
+        if entry.repo:
+            source = entry.repo
+        elif entry.url:
+            source = entry.url
+        else:
+            source = f'no repo or url in {REGISTRY_PATH.name}'
+
+        print(f'  {name:<38}{state:<13}{source}')
 
 
 def command_env(args):
@@ -75,77 +89,103 @@ def command_env(args):
     except ImportError:
         default_workers = 'unknown, dependencies are missing'
 
-    downloaded_state = 'present' if DOWNLOADED_DIR.is_dir() else 'missing, run download'
+    if os.environ.get(PROJECTS_DIR_ENV):
+        projects_source = f'from {PROJECTS_DIR_ENV}'
+    else:
+        projects_source = 'next to app/'
+
+    if PROJECTS_DIR.is_dir():
+        downloaded = sum(1 for name in registry.sites if registry.downloaded_at(name))
+        copies = f'{downloaded} downloaded'
+    else:
+        copies = 'missing, run download'
+
+    listed = f'{len(registry.sites)} sites'
+
+    _token, token_source = github_token()
 
     print(f'app directory:    {APP_DIR}')
-    print(f'downloaded data:  {DOWNLOADED_DIR} ({downloaded_state})')
+    print(f'site copies:      {PROJECTS_DIR} ({projects_source}, {copies})')
+    print(f'site registry:    {REGISTRY_PATH} ({listed})')
+    print(f'github token:     {token_source or "not set, needed to download artifacts"}')
     print(f'default output:   {DEFAULT_OUTPUT}')
     print(f'default workers:  {default_workers}')
     print(f'python:           {sys.version.split()[0]}')
     print(f'scrapy:           {scrapy_version}')
 
 
+# Downloading
+
+
 def command_download(args):
-    url = args.url
-    if not url:
-        raise CommandError('No URL given. Run: scrape download <url>')
+    # A download replaces a two gigabyte copy, so it is always asked for by
+    # name rather than falling back to whichever site a default would pick.
+    if not args.site:
+        raise CommandError(
+            'No site given. Run: scrape sites download <site>\n\nKnown sites:\n'
+            + registry.known_sites()
+        )
 
-    with tempfile.TemporaryDirectory() as temporary_directory:
-        archive = Path(temporary_directory) / 'downloaded.zip'
-
-        print(f'Downloading {url}')
-        run_command(['wget', url, '-O', str(archive)])
-
-        if DOWNLOADED_DIR.exists():
-            print(f'Removing the previous copy at {DOWNLOADED_DIR}')
-            shutil.rmtree(DOWNLOADED_DIR)
-
-        print(f'Unpacking into {DOWNLOADED_DIR}')
-        run_command(['unzip', '-q', str(archive), '-d', str(DOWNLOADED_DIR)])
-
-    # Only the html is ever scraped, and the rest is most of the download size.
-    removed = prune_non_html(DOWNLOADED_DIR)
-    print(f'Removed {removed} non-html files. Ready to scrape.')
+    return download_site(args.site, args.allow_failed)
 
 
-def prune_non_html(root):
-    """Deletes everything that is not an .html file. Returns how many went."""
-    removed = 0
+# Scraping
 
-    for directory, _directories, files in os.walk(root):
-        for name in files:
-            if not name.endswith('.html'):
-                os.remove(os.path.join(directory, name))
-                removed += 1
 
-    return removed
+def missing_site(site):
+    """What to say when there is no copy of the site to scrape."""
+    present = [name for name in sorted(registry.sites) if registry.downloaded_at(name)]
+
+    message = f'There is no copy of {site} at {registry.folder_path(site)}.\n'
+    if present:
+        message += f'Downloaded sites: {", ".join(present)}.\n'
+    message += (
+        f"Run 'scrape sites download {site_domain(site)}', or 'scrape sites' to "
+        f'see the choices.'
+    )
+
+    return message
 
 
 def command_scrape(args):
-    # Without a module there is nothing to scrape, and the thing people are
-    # missing is the list of module names, so show that instead of a usage error.
+    # Without a site or a module there is nothing to scrape, and the thing
+    # people are missing is the list of names, so show those instead of a
+    # usage error.
+    if args.site is None:
+        args.parser.print_help()
+        return 1
+
     if args.module is None:
+        # The site used to be part of the crawl module, so an old habit reads
+        # as a site name that happens to be a module.
+        if args.site in available_modules():
+            raise CommandError(
+                f'The site comes first: scrape scrape <site> {args.site}\n'
+                f'\nKnown sites:\n' + registry.known_sites()
+            )
+
         args.parser.print_help()
         return 1
 
     if args.workers is not None and args.workers < 1:
         raise CommandError('--workers has to be at least 1.')
 
-    # Resolved before scrapy starts up, so a typo in the module name is reported
-    # immediately instead of somewhere inside the crawler.
+    # Both are resolved before scrapy starts up, so a name that is not a site or
+    # a module is reported immediately instead of somewhere inside the crawler.
+    entry = registry.site(args.site)
     config = load_crawl_config(args.module)
+    config = dataclasses.replace(
+        config,
+        website_path=args.site,
+        layout=entry.layout,
+    )
+
+    if not registry.exists(args.site):
+        raise CommandError(missing_site(args.site))
 
     from scrapy.crawler import CrawlerProcess
     from scrapy.utils.project import get_project_settings
-    from webcrawler.spiders.helficopy import HelficopySpider, site_folder_path
-
-    folder_path = site_folder_path(config.website_path)
-    if not os.path.isdir(folder_path):
-        raise CommandError(
-            f'There is no copy of the site at {folder_path}.\n'
-            f"Run 'download' first, or check the website_path in "
-            f'{config.name}.'
-        )
+    from webcrawler.spiders.helficopy import HelficopySpider
 
     settings = get_project_settings()
     settings.set('LOG_LEVEL', args.log_level)
@@ -176,15 +216,29 @@ def build_parser():
 
     scrape = subparsers.add_parser(
         'scrape',
-        help='scrape the downloaded site using a crawl module',
-        description='Scrape the downloaded site using the rules in a crawl module.',
-        epilog='Available crawl modules:\n' + module_list(),
+        help='scrape a downloaded site using a crawl module',
+        description='Scrape a downloaded site using the rules in a crawl module.',
+        epilog=(
+            'Available sites:\n' + registry.known_sites()
+            + '\n\nAvailable crawl modules:\n' + module_list()
+            + '\n\nA crawl module can also be a file of your own, given as a path:\n'
+            '  scrape scrape www.hel.fi ./my-search.py\n'
+            'A file wins over a module of the same name in the repository.'
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    scrape.add_argument(
+        'site',
+        nargs='?',
+        help='site to scrape, e.g. www.hel.fi, www.hel.fi/fi or historia.hel.fi',
     )
     scrape.add_argument(
         'module',
         nargs='?',
-        help="crawl module to use, e.g. quotes or custom/my-search",
+        help=(
+            'crawl module to use: a name like quotes or custom/my-search, or a '
+            'path to a file of your own like ./my-search.py'
+        ),
     )
     scrape.add_argument(
         '--workers',
@@ -199,26 +253,41 @@ def build_parser():
     )
     scrape.add_argument(
         '--log-level',
-        default='ERROR',
+        default='INFO',
         choices=LOG_LEVELS,
-        help='how noisy scrapy should be (default: ERROR)',
+        help='how noisy the crawl should be (default: INFO)',
     )
     scrape.set_defaults(handler=command_scrape, parser=scrape)
 
-    download = subparsers.add_parser(
-        'download',
-        help='download the latest copy of the site to scrape',
-        description='Download and unpack the latest copy of the site into app/downloaded.',
-        epilog='The url defaults to DOWNLOAD_URL environment variable if set',
+    site_listing = subparsers.add_parser(
+        'sites',
+        help='list the sites, and download copies of them',
+        description='List the sites and which ones have been downloaded.',
+        epilog='Known sites:\n' + registry.known_sites(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    download_url = os.environ.get('DOWNLOAD_URL')
+    # Listing is what a bare 'scrape sites' does, so the subcommand is optional.
+    site_listing.set_defaults(handler=command_sites)
+    site_commands = site_listing.add_subparsers(dest='sites_command', metavar='<command>')
+
+    download = site_commands.add_parser(
+        'download',
+        help='download the latest copy of a site',
+        description=(
+            'Download and unpack the latest copy of a site into projects/<site>.\n'
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     download.add_argument(
-        'url',
+        'site',
         nargs='?',
-        default=download_url,
-        metavar='URL',
-        # Only worth mentioning when there is something to mention.
-        help='zip file to download' + (f' (default: {download_url})' if download_url else ''),
+        metavar='SITE',
+        help='site to download',
+    )
+    download.add_argument(
+        '--allow-failed',
+        action='store_true',
+        help='accept a copy from a workflow run that did not succeed',
     )
     download.set_defaults(handler=command_download)
 
@@ -235,16 +304,18 @@ def build_parser():
 
 
 def main(argv=None):
-    parser = build_parser()
-    args = parser.parse_args(argv)
-
-    if args.command is None:
-        parser.print_help()
-        return 1
-
+    # Building the parser reads sites.toml for the help text, so an unreadable
+    # registry has to be caught here rather than around the handler alone.
     try:
+        parser = build_parser()
+        args = parser.parse_args(argv)
+
+        if args.command is None:
+            parser.print_help()
+            return 1
+
         return args.handler(args) or 0
-    except (CommandError, CrawlModuleError) as error:
+    except (CommandError, CrawlModuleError, DownloadError, SiteError) as error:
         print(f'Error: {error}', file=sys.stderr)
         return 1
     except KeyboardInterrupt:

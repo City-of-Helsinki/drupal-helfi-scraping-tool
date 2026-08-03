@@ -1,9 +1,3 @@
-# Website path
-website_path = 'www.hel.fi' # Use when you want to search all pages
-# website_path = 'www.hel.fi/fi' # Use when you want to limit search only to Finnish pages
-# website_path = 'www.hel.fi/sv' # Use when you want to limit search only to Swedish pages
-# website_path = 'www.hel.fi/en' # Use when you want to limit search only to English pages
-
 # By default all regex matching is off
 regex_path_include_pattern = None # This turns off include filtering
 regex_path_exclude_pattern = None # This turns off exclude filtering

@@ -5,6 +5,10 @@ services:
       - ./app:/usr/src/app
       - ./projects:/projects
     user: ${MY_UID}:${MY_GID}
+    environment:
+      # The site copies are mounted outside the app directory, so the tool is
+      # told where they are instead of working it out from its own location.
+      SCRAPING_TOOL_PROJECTS_DIR: /projects
     tty: true
     stdin_open: true
     env_file:

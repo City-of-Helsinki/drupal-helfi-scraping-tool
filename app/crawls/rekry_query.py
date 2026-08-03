@@ -1,8 +1,5 @@
 import re
 
-# Website path
-website_path = 'www.hel.fi' # Use when you want to search all pages
-
 # By default all regex matching is off
 regex_path_include_pattern = None # This turns off include filtering
 regex_path_exclude_pattern = None # This turns off exclude filtering

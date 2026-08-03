@@ -5,15 +5,9 @@ import signal
 import time  # Import the time library
 import re  # import the regex library
 from bs4 import BeautifulSoup
-from pathlib import Path
 from w3lib.url import safe_url_string
 
-SCRAPER_VERSION = '2.1'
-
-# The scraper reads a copy of the site from app/downloaded/. Anchored to this
-# file rather than the working directory so the spider can be run from anywhere.
-APP_DIR = Path(__file__).resolve().parents[2]
-DOWNLOADED_DIR = APP_DIR / 'downloaded'
+from sites import registry
 
 def human_readable_time(seconds):
     """Converts time in seconds to a human-readable string."""
@@ -26,10 +20,6 @@ def human_readable_time(seconds):
         return f"{int(minutes)}m {int(seconds)}s"
     else:
         return f"{int(seconds)}s"
-
-def site_folder_path(website_path):
-    """The folder holding the copy of the given site."""
-    return str(DOWNLOADED_DIR / website_path)
 
 def worker_count(configured=None):
     """How many worker processes to use. Defaults to every core available."""
@@ -54,6 +44,7 @@ class WorkerState:
     def __init__(self, config, folder_path):
         self.folder_path = folder_path
         self.website_path = config.website_path
+        self.layout = config.layout
         self.logic = config.custom_soup_and_loop_logic
         self.path_include_re = compile_pattern(config.regex_path_include_pattern)
         self.path_exclude_re = compile_pattern(config.regex_path_exclude_pattern)
@@ -103,12 +94,39 @@ def filter_file(file_path):
 
     return None
 
-def public_url(file_path):
-    """Turns a local file path into the https url of the page it is a copy of."""
+def kopio_url(file_path):
+    """The url of a page in the httrack copy of the core site."""
     # Matches what scrapy.Request did to the file:// url the spider used to yield.
     url = safe_url_string('file://' + file_path.replace("#", "%23"))[7:]
     url = url.replace(worker.folder_path, "https://" + worker.website_path)
     return url.replace(".html", "")
+
+def wget2_url(file_path):
+    """The url of a page in a copy made by the scraping-tool workflow."""
+    page = os.path.relpath(file_path, worker.folder_path).removesuffix('.html')
+
+    # wget2 --mirror saves the page of a folder url inside that folder.
+    if page == 'index':
+        page = ''
+    elif page.endswith('/index'):
+        page = page[:-len('index')]
+
+    # --restrict-file-names=windows escapes the characters a windows filesystem
+    # will not take, which is how a query string ends up inside a filename. Only
+    # the ? that begins it is turned back; anything escaped after that point was
+    # escaped inside a value and belongs in the url as it is.
+    page = page.replace('%3F', '?', 1)
+
+    return safe_url_string('https://' + worker.website_path + '/' + page.replace('#', '%23'))
+
+URL_BUILDERS = {
+    'kopio': kopio_url,
+    'wget2': wget2_url,
+}
+
+def public_url(file_path):
+    """Turns a local file path into the https url of the page it is a copy of."""
+    return URL_BUILDERS[worker.layout](file_path)
 
 def scrape_file(file_path):
     """Scrapes a single file in a worker process. Returns (url, items, matches)."""
@@ -137,7 +155,7 @@ class HelficopySpider(scrapy.Spider):
         self.start_time = None  # Initialize the start_time
         self.config = config
         self.website_path = config.website_path # Website path from the crawl module
-        self.folder_path = site_folder_path(self.website_path)
+        self.folder_path = registry.folder_path(self.website_path)
         self.workers = worker_count(workers)
         self.state = WorkerState(config, self.folder_path)
 
@@ -159,8 +177,8 @@ class HelficopySpider(scrapy.Spider):
 
     async def start(self):
 
-        print(f"Scraper v{SCRAPER_VERSION}")
         print(f"Using crawl module: {self.config.name}")
+        print(f"Scraping site: {self.website_path} ({self.config.layout} copy)")
         print(f"Scraping files from {self.folder_path} with {self.workers} workers")
 
         self.all_start_time = time.time()  # Record the start time
@@ -196,7 +214,7 @@ class HelficopySpider(scrapy.Spider):
             for item in items:  # async generators cannot yield from
                 yield item
 
-            self.print_progress(url)
+            self.log_progress(url)
 
     def filtered_files(self):
         """The list of files to scrape, in os.walk order."""
@@ -235,7 +253,8 @@ class HelficopySpider(scrapy.Spider):
             if path is not None
         ]
 
-    def print_progress(self, url):
+    def log_progress(self, url):
+        """One line per file scraped, at INFO so --log-level can turn it off."""
         percentage_complete = (self.processed_files / self.total_files) * 100
 
         # Calculate elapsed and remaining time
@@ -247,4 +266,7 @@ class HelficopySpider(scrapy.Spider):
         remaining_time_str = human_readable_time(remaining_time)
         elapsed_time_str = human_readable_time(all_elapsed_time)
 
-        print(f"{percentage_complete:.2f}% = {elapsed_time_str}, ({self.matches} matches) remaining: {remaining_time_str} - {url}")
+        self.logger.info(
+            f"{percentage_complete:.2f}% = {elapsed_time_str}, ({self.matches} matches) "
+            f"remaining: {remaining_time_str} - {url}"
+        )
