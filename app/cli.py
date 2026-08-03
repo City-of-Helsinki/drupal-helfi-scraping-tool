@@ -6,6 +6,7 @@ import argparse
 import dataclasses
 import datetime
 import os
+import signal
 import sys
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from sites import (
     registry,
     site_domain,
 )
+from webcrawler.pipelines import STDOUT_PATH, to_stdout
 
 
 class CommandError(Exception):
@@ -170,7 +172,12 @@ def command_scrape(args):
 
     settings = get_project_settings()
     settings.set('LOG_LEVEL', args.log_level)
-    settings.set('SCRAPED_DATA_OUTPUT', os.path.abspath(args.output))
+    output = args.output if args.output == STDOUT_PATH else os.path.abspath(args.output)
+    settings.set('SCRAPED_DATA_OUTPUT', output)
+
+    # Install SIGPIPE handler.
+    if to_stdout(settings):
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
     process = CrawlerProcess(settings)
     crawler = process.create_crawler(HelficopySpider)
@@ -178,7 +185,9 @@ def command_scrape(args):
     process.start()
 
     matches = getattr(crawler.spider, 'matches', 0)
-    print(f'Done, {matches} matches written to {settings.get("SCRAPED_DATA_OUTPUT")}')
+
+    if not to_stdout(settings):
+        print(f'Done, {matches} matches written to {settings.get("SCRAPED_DATA_OUTPUT")}')
 
 
 def build_parser():

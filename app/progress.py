@@ -52,15 +52,14 @@ class ProgressBar:
     somewhere keeps whatever line based output the caller decided on instead.
     """
 
-    def __init__(self, total, stream=None, prefix='', min_interval=0.1):
+    def __init__(self, total, stream=None, prefix='', min_interval=0.1, enabled=True):
         self.stream = stream if stream is not None else sys.stdout
         # Without a total there is no way to say how far along this is, so the
         # bar and the percentage are left out and the fields carry the report.
         self.total = total
         self.prefix = prefix
         # A pipe or a file gets nothing, so the carriage returns never end up in
-        # a log someone is reading later.
-        self.enabled = self.stream.isatty()
+        self.enabled = enabled and self.stream.isatty()
         self.min_interval = min_interval
         self.last_draw = 0.0
         self.drawn = False

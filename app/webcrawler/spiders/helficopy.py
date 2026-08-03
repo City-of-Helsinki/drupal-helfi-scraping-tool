@@ -9,6 +9,7 @@ from w3lib.url import safe_url_string
 
 from progress import ProgressBar, human_readable_time
 from sites import registry
+from webcrawler.pipelines import to_stdout
 
 def worker_count(configured=None):
     """How many worker processes to use. Defaults to every core available."""
@@ -192,7 +193,9 @@ class HelficopySpider(scrapy.Spider):
 
         self.logger.info(f"Found {self.total_files} files to scrape")
 
-        self.progress = ProgressBar(self.total_files)
+        self.progress = ProgressBar(
+            self.total_files, enabled=not to_stdout(self.settings)
+        )
         self.progress.keep_clear_of_logging()
         self.start_time = time.time()  # Record the start time
 

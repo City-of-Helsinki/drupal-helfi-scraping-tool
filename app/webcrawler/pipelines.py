@@ -4,25 +4,45 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
 import json
+import sys
+
+# What --output takes to mean stdout.
+STDOUT_PATH = '-'
+
+
+def to_stdout(settings):
+    """Whether the items are being written to stdout instead of to a file."""
+    return settings.get('SCRAPED_DATA_OUTPUT') == STDOUT_PATH
 
 
 class JsonExportPipeline:
     # The cli resolves --output into SCRAPED_DATA_OUTPUT before the crawl starts.
     def __init__(self, output_path):
         self.output_path = output_path
+        self.streaming = output_path == STDOUT_PATH
 
     @classmethod
     def from_crawler(cls, crawler):
         return cls(output_path=crawler.settings.get('SCRAPED_DATA_OUTPUT'))
 
     def open_spider(self):
-        self.file = open(self.output_path, 'w', encoding='utf-8')
+        if self.streaming:
+            self.file = sys.stdout
+        else:
+            self.file = open(self.output_path, 'w', encoding='utf-8')
+
         self.file.write('[')
         self.item_count = 0
 
     def close_spider(self):
         self.file.write('\n]')
-        self.file.close()
+
+        # Don't close stdout.
+        if self.streaming:
+            self.file.write('\n')
+            self.file.flush()
+        else:
+            self.file.close()
 
     def process_item(self, item):
         # An aborted run can close the file while an item is still on its way here.
