@@ -46,11 +46,12 @@ Either way the copy lands in `projects/<site>/` and is scraped the same way.
 ### Requirements
 
 * Docker
+* Optionally the [github cli](https://cli.github.com/).
 
 ### Install steps
 
 1. Clone this repository
-2. `cp .env.local.example .env.local` and fill in `GITHUB_TOKEN`, which is needed to download any site except the core one. Create one at https://github.com/settings/tokens with the `public_repo` scope, or a fine grained token with read access to Actions.
+2. Give the tool a way to reach github, which it needs to download any site except www.hel.fi. Either run `gh auth login`, or `cp .env.local.example .env.local` and fill in `GITHUB_TOKEN`. Create a token at https://github.com/settings/tokens with the `public_repo` scope, or a fine grained token with read access to Actions.
    * The core site comes from a kopio.hel.fi zip file of a token. Its address is the `url` of `www.hel.fi` in [app/sites.toml](app/sites.toml).
 3. Run `./scrape sites download <site>` for the site you are interested in
 4. Read usage instructions below

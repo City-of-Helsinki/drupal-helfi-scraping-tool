@@ -25,7 +25,7 @@ if str(APP_DIR) not in sys.path:
 os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'webcrawler.settings')
 
 from config import CrawlConfig, CrawlModuleError, available_modules
-from download import DownloadError, download_site, github_token
+from download import DownloadError, download_site, github_access_name
 from sites import (
     PROJECTS_DIR,
     REGISTRY_PATH,
@@ -99,12 +99,12 @@ def command_env(args):
 
     listed = f'{len(registry.sites)} sites'
 
-    token = 'set' if github_token() else 'not set, needed to download artifacts'
+    access = github_access_name() or 'none, needed to download artifacts'
 
     print(f'app directory:    {APP_DIR}')
     print(f'site copies:      {PROJECTS_DIR} ({copies})')
     print(f'site registry:    {REGISTRY_PATH} ({listed})')
-    print(f'github token:     {token}')
+    print(f'github access:    {access}')
     print(f'default output:   {os.path.abspath(DEFAULT_OUTPUT)}')
     print(f'default workers:  {default_workers}')
     print(f'python:           {sys.version.split()[0]}')
