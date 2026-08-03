@@ -312,10 +312,12 @@ def download_artifact(domain: str, repo: str, allow_failed: bool) -> None:
         raise DownloadError(f'Could not reach {url}: {error.reason}')
 
 
-def prepare_projects_dir() -> None:
-    """Makes sure the downloaded copy has somewhere to go."""
-    # A download is the only thing that writes to projects/, so a fresh clone
-    # gets the folder from here rather than from a placeholder kept in git.
+def download_site(site: str, allow_failed: bool = False) -> None:
+    """Downloads a listed site, from wherever its entry says it comes from."""
+    # An unlisted site is reported before anything is written to projects/.
+    entry = registry.site(site)
+
+    # Make sure projects dir exists.
     try:
         PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
     except OSError as error:
@@ -324,13 +326,6 @@ def prepare_projects_dir() -> None:
     if not os.access(PROJECTS_DIR, os.W_OK):
         raise DownloadError(f'{PROJECTS_DIR} is not writable.')
 
-
-def download_site(site: str, allow_failed: bool = False) -> None:
-    """Downloads a listed site, from wherever its entry says it comes from."""
-    # An unlisted site is reported before anything is written to projects/.
-    entry = registry.site(site)
-
-    prepare_projects_dir()
 
     if entry.repo:
         return download_artifact(entry.domain, entry.repo, allow_failed)

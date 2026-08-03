@@ -2,8 +2,8 @@ import multiprocessing
 import os
 import scrapy
 import signal
-import time  # Import the time library
-import re  # import the regex library
+import time
+import re
 from bs4 import BeautifulSoup
 from w3lib.url import safe_url_string
 
@@ -20,14 +20,13 @@ def worker_count(configured=None):
         return max(1, os.cpu_count() or 1)
 
 def compile_pattern(pattern):
-    """Compile once instead of leaning on the re module cache for every file."""
+    """Compile regex pattern."""
     return re.compile(pattern) if pattern is not None else None
 
 class WorkerState:
     """Everything a worker process needs to scrape a file on its own.
 
-    The crawl module is chosen at runtime, so this is built in the spider and
-    handed to the workers rather than living in module level globals.
+    The crawl module is chosen at runtime, so this is built in the spider.
     """
 
     def __init__(self, config, folder_path):
@@ -84,7 +83,7 @@ def filter_file(file_path):
     return None
 
 def kopio_url(file_path):
-    """The url of a page in the httrack copy of the core site."""
+    """The url of a page in the httrack copy of www.hel.fi."""
     # Matches what scrapy.Request did to the file:// url the spider used to yield.
     url = safe_url_string('file://' + file_path.replace("#", "%23"))[7:]
     url = url.replace(worker.folder_path, "https://" + worker.website_path)
@@ -147,17 +146,13 @@ class HelficopySpider(scrapy.Spider):
         self.start_time = None  # Initialize the start_time
         self.progress = None  # Set up once the number of files is known
         self.config = config
-        self.website_path = config.website_path # Website path from the crawl module
+        self.website_path = config.website_path
         self.folder_path = registry.folder_path(self.website_path)
         self.workers = worker_count(workers)
         self.state = WorkerState(config, self.folder_path)
 
         # Reading files and parsing html is pure python work, so threads would just
-        # queue up behind the GIL. Fork a pool of processes instead. Forking here,
-        # before the item pipeline opens its output file, keeps the workers from
-        # inheriting a copy of it. Forking also means the state below is inherited
-        # as is, so the compiled patterns and the crawl module's own function do
-        # not have to survive pickling.
+        # queue up behind the GIL. Fork a pool of processes instead.
         self.pool = multiprocessing.get_context('fork').Pool(
             processes=self.workers,
             initializer=init_worker,
@@ -165,7 +160,6 @@ class HelficopySpider(scrapy.Spider):
         )
 
     def closed(self, reason):
-        # Also runs when the spider never got as far as counting the files.
         if self.progress is not None:
             self.progress.clear()
 
@@ -174,8 +168,6 @@ class HelficopySpider(scrapy.Spider):
 
     async def start(self):
 
-        # What the run was asked to do is only worth reading when something looks
-        # wrong with the result, so it is logged rather than printed.
         self.logger.info(f"Using crawl module: {self.config.name}")
         self.logger.info(f"Scraping site: {self.website_path} ({self.config.layout} copy)")
         self.logger.info(f"Scraping files from {self.folder_path} with {self.workers} workers")
@@ -198,7 +190,7 @@ class HelficopySpider(scrapy.Spider):
         filtered_files = self.filtered_files()
         self.total_files = len(filtered_files)
 
-        self.logger.info(f"Found {self.total_files} files to scrape in {human_readable_time(time.time() - self.all_start_time)}")
+        self.logger.info(f"Found {self.total_files} files to scrape")
 
         self.progress = ProgressBar(self.total_files)
         self.progress.keep_clear_of_logging()
@@ -258,14 +250,15 @@ class HelficopySpider(scrapy.Spider):
         """How far along the run is.
 
         On a terminal this is one line redrawn in place. Anywhere else it is one
-        line per file scraped, at INFO so --log-level can turn it off.
+        line per file scraped printed at INFO (so --log-level can turn it off).
         """
-        # Calculate elapsed and remaining time
-        elapsed_time = time.time() - self.start_time
-        all_elapsed_time = time.time() - self.all_start_time
-        remaining_time = ((self.total_files - self.processed_files) / self.processed_files) * elapsed_time
-
+        # Times are only worth showing on the progress bar, a log file gets its own
+        # timestamps and is not read while the run is going anyway.
         if self.progress.enabled:
+            elapsed_time = time.time() - self.start_time
+            all_elapsed_time = time.time() - self.all_start_time
+            remaining_time = ((self.total_files - self.processed_files) / self.processed_files) * elapsed_time
+
             self.progress.update(
                 self.processed_files,
                 [
@@ -280,11 +273,4 @@ class HelficopySpider(scrapy.Spider):
 
         percentage_complete = (self.processed_files / self.total_files) * 100
 
-        # Convert elapsed and remaining time to human-readable strings
-        remaining_time_str = human_readable_time(remaining_time)
-        elapsed_time_str = human_readable_time(all_elapsed_time)
-
-        self.logger.info(
-            f"{percentage_complete:.2f}% = {elapsed_time_str}, ({self.matches} matches) "
-            f"remaining: {remaining_time_str} - {url}"
-        )
+        self.logger.info(f"{percentage_complete:.2f}% ({self.matches} matches) - {url}")

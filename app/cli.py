@@ -24,7 +24,6 @@ from config import CrawlConfig, CrawlModuleError, available_modules
 from download import DownloadError, download_site, github_token
 from sites import (
     PROJECTS_DIR,
-    PROJECTS_DIR_ENV,
     REGISTRY_PATH,
     SiteError,
     registry,
@@ -89,11 +88,6 @@ def command_env(args):
     except ImportError:
         default_workers = 'unknown, dependencies are missing'
 
-    if os.environ.get(PROJECTS_DIR_ENV):
-        projects_source = f'from {PROJECTS_DIR_ENV}'
-    else:
-        projects_source = 'next to app/'
-
     if PROJECTS_DIR.is_dir():
         downloaded = sum(1 for name in registry.sites if registry.downloaded_at(name))
         copies = f'{downloaded} downloaded'
@@ -105,7 +99,7 @@ def command_env(args):
     token = 'set' if github_token() else 'not set, needed to download artifacts'
 
     print(f'app directory:    {APP_DIR}')
-    print(f'site copies:      {PROJECTS_DIR} ({projects_source}, {copies})')
+    print(f'site copies:      {PROJECTS_DIR} ({copies})')
     print(f'site registry:    {REGISTRY_PATH} ({listed})')
     print(f'github token:     {token}')
     print(f'default output:   {DEFAULT_OUTPUT}')
@@ -148,32 +142,18 @@ def missing_site(site):
 
 
 def command_scrape(args):
-    # Without a site or a module there is nothing to scrape, and the thing
-    # people are missing is the list of names, so show those instead of a
-    # usage error.
-    if args.site is None:
-        args.parser.print_help()
-        return 1
-
-    if args.module is None:
-        # The site used to be part of the crawl module, so an old habit reads
-        # as a site name that happens to be a module.
-        if args.site in available_modules():
-            raise CommandError(
-                f'The site comes first: scrape scrape <site> {args.site}\n'
-                f'\nKnown sites:\n' + registry.known_sites()
-            )
-
+    # Without a site or a module there is nothing to scrape
+    if args.site is None or args.module is None:
         args.parser.print_help()
         return 1
 
     if args.workers is not None and args.workers < 1:
         raise CommandError('--workers has to be at least 1.')
 
-    # Both are resolved before scrapy starts up, so a name that is not a site or
-    # a module is reported immediately instead of somewhere inside the crawler.
     entry = registry.site(args.site)
     config = CrawlConfig.load(args.module)
+
+    # Bind CrawConfig to the site we have loaded.
     config = dataclasses.replace(
         config,
         website_path=args.site,
@@ -262,7 +242,6 @@ def build_parser():
         epilog='Known sites:\n' + registry.known_sites(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    # Listing is what a bare 'scrape sites' does, so the subcommand is optional.
     site_listing.set_defaults(handler=command_sites)
     site_commands = site_listing.add_subparsers(dest='sites_command', metavar='<command>')
 

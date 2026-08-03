@@ -9,10 +9,7 @@ from typing import Optional
 
 APP_DIR = Path(__file__).resolve().parent
 
-# The container mounts projects/ outside the app directory, so the location is
-# passed in. Running the cli directly finds it next to app/ instead.
-PROJECTS_DIR_ENV = 'SCRAPING_TOOL_PROJECTS_DIR'
-PROJECTS_DIR = Path(os.environ.get(PROJECTS_DIR_ENV) or APP_DIR.parent / 'projects')
+PROJECTS_DIR = Path(os.environ.get('SCRAPING_TOOL_PROJECTS_DIR') or APP_DIR.parent / 'projects')
 
 REGISTRY_PATH = APP_DIR / 'sites.toml'
 
