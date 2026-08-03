@@ -24,10 +24,12 @@ if str(APP_DIR) not in sys.path:
 # Lets scrapy find the project settings without relying on scrapy.cfg discovery.
 os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'webcrawler.settings')
 
-from config import CrawlConfig, CrawlModuleError, available_modules
+from config import CRAWLS_DIR, CrawlConfig, CrawlModuleError, available_modules
 from download import DownloadError, download_site, github_access_name
+from paths import CONFIG_DIR, DATA_DIR
 from sites import (
     PROJECTS_DIR,
+    PROJECTS_ENVIRONMENT_VARIABLE,
     REGISTRY_PATH,
     SiteError,
     registry,
@@ -76,6 +78,26 @@ def command_sites(args):
         print(f'  {name:<38}{state:<13}{source}')
 
 
+def user_directory(path):
+    """One of the directories under $HOME, and whether it is being used."""
+    if path is None:
+        return 'none, there is no home directory'
+
+    if not path.is_dir():
+        return f'{path} (not there, the app folder is used instead)'
+
+    return str(path)
+
+
+def resolved_from(path):
+    """Which of the directories a path that has a fallback ended up in."""
+    for root, name in ((CONFIG_DIR, 'config directory'), (DATA_DIR, 'data directory')):
+        if root is not None and Path(path).is_relative_to(root):
+            return name
+
+    return 'app folder'
+
+
 def command_env(args):
     try:
         import scrapy
@@ -101,9 +123,19 @@ def command_env(args):
 
     access = github_access_name() or 'none, needed to download artifacts'
 
+    # Where the site copies came from is worth spelling out, since the
+    # environment variable overrides both directories.
+    if (os.environ.get(PROJECTS_ENVIRONMENT_VARIABLE) or '').strip():
+        copies_from = PROJECTS_ENVIRONMENT_VARIABLE
+    else:
+        copies_from = resolved_from(PROJECTS_DIR)
+
     print(f'app directory:    {APP_DIR}')
-    print(f'site copies:      {PROJECTS_DIR} ({copies})')
-    print(f'site registry:    {REGISTRY_PATH} ({listed})')
+    print(f'config directory: {user_directory(CONFIG_DIR)}')
+    print(f'data directory:   {user_directory(DATA_DIR)}')
+    print(f'site copies:      {PROJECTS_DIR} ({copies_from}, {copies})')
+    print(f'site registry:    {REGISTRY_PATH} ({resolved_from(REGISTRY_PATH)}, {listed})')
+    print(f'crawl modules:    {CRAWLS_DIR}')
     print(f'github access:    {access}')
     print(f'default output:   {os.path.abspath(DEFAULT_OUTPUT)}')
     print(f'default workers:  {default_workers}')

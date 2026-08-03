@@ -83,6 +83,10 @@ A crawl module can be given as a path to a file instead of a name:
 ./scrape scrape www.hel.fi ./my-search.py
 ```
 
+The names in `./scrape list` are the modules in [app/crawls/](app/crawls) that
+ship with the tool. Everything else is a file path, so a module of your own can
+sit anywhere.
+
 ### Running in Docker
 
 `./scrape` is a small wrapper that runs the tool inside a container, so that Docker
@@ -99,8 +103,8 @@ python app/cli.py scrape www.hel.fi quotes --workers 4
 When I want to use this tool, I normally do the following:
 
 * If I have not run the download command for a while (data updates once per day), I run `./scrape sites download <site>`
-* Copy `app/crawls/custom/_example.py` to a new file in `app/crawls/custom/` folder with a descriptive name
-  * For example: `cp app/crawls/custom/_example.py app/crawls/custom/list-of-links.py`
+* Copy `app/crawls/_example.py` to a new file with a descriptive name
+  * For example: `cp app/crawls/_example.py app/my-searches/list-of-links.py`
 * Modify the new file to reduce the files to be searched as small as possible using filename and filecontents patterns
   * For example: `regex_content_include_pattern = r'component--list-of-links'`
 * Create an CSS selector to match the HTML elements of interest
@@ -110,10 +114,10 @@ When I want to use this tool, I normally do the following:
   * For example: `'url': url,` and `'text': match.get_text().strip(),`
   * This would print url as many times there are list-of-links on the site.
 * Save my changes to the module file, then run the scrape
-  * For example: `./scrape scrape www.hel.fi custom/list-of-links`
+  * For example: `./scrape scrape www.hel.fi ./my-searches/list-of-links.py`
 * Check the matches from the command line and from the resulting `scraped_data.json` file.
 * If `docker/requirements.txt` or `Dockerfile` is updated, run `./scrape build`.
-* If you want to share the new `list-of-links` script, copy it to the folder `app/crawls/` and commit it. It can now be run with `./scrape scrape <site> list-of-links`
+* If you want to share the new `list-of-links` script, move it to the folder `app/crawls/` and commit it. It can now be run by name with `./scrape scrape <site> list-of-links`
 
 ### Tips
 

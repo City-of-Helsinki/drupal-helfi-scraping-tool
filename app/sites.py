@@ -7,11 +7,32 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional
 
-APP_DIR = Path(__file__).resolve().parent
+from paths import APP_DIR, DATA_DIR, REPO_ROOT, in_config_dir
 
-PROJECTS_DIR = Path(os.environ.get('SCRAPING_TOOL_PROJECTS_DIR') or APP_DIR.parent / 'projects')
+PROJECTS_ENVIRONMENT_VARIABLE = 'SCRAPING_TOOL_PROJECTS_DIR'
 
-REGISTRY_PATH = APP_DIR / 'sites.toml'
+
+def projects_dir() -> Path:
+    """Where the copies of the sites are kept."""
+    override = (os.environ.get(PROJECTS_ENVIRONMENT_VARIABLE) or '').strip()
+
+    if override:
+        return Path(override).expanduser()
+
+    # Only the data directory has to be there. The copies are downloaded rather
+    # than written by hand, so download creates projects/ inside it when it
+    # needs to.
+    if DATA_DIR is not None and DATA_DIR.is_dir():
+        return DATA_DIR / 'projects'
+
+    return REPO_ROOT / 'projects'
+
+
+PROJECTS_DIR = projects_dir()
+
+# A site has to be listed before it can be downloaded, and the list that ships
+# with the tool can be replaced with one of your own.
+REGISTRY_PATH = in_config_dir('sites.toml', APP_DIR / 'sites.toml')
 
 # What the reusable github workflow calls the copy it uploads. The same for
 # every site, since they all call the same workflow.
