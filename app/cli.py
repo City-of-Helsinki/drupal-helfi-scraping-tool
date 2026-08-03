@@ -20,7 +20,7 @@ if str(APP_DIR) not in sys.path:
 # Lets scrapy find the project settings without relying on scrapy.cfg discovery.
 os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'webcrawler.settings')
 
-from config import CrawlModuleError, available_modules, load_crawl_config
+from config import CrawlConfig, CrawlModuleError, available_modules
 from download import DownloadError, download_site, github_token
 from sites import (
     PROJECTS_DIR,
@@ -102,12 +102,12 @@ def command_env(args):
 
     listed = f'{len(registry.sites)} sites'
 
-    _token, token_source = github_token()
+    token = 'set' if github_token() else 'not set, needed to download artifacts'
 
     print(f'app directory:    {APP_DIR}')
     print(f'site copies:      {PROJECTS_DIR} ({projects_source}, {copies})')
     print(f'site registry:    {REGISTRY_PATH} ({listed})')
-    print(f'github token:     {token_source or "not set, needed to download artifacts"}')
+    print(f'github token:     {token}')
     print(f'default output:   {DEFAULT_OUTPUT}')
     print(f'default workers:  {default_workers}')
     print(f'python:           {sys.version.split()[0]}')
@@ -173,7 +173,7 @@ def command_scrape(args):
     # Both are resolved before scrapy starts up, so a name that is not a site or
     # a module is reported immediately instead of somewhere inside the crawler.
     entry = registry.site(args.site)
-    config = load_crawl_config(args.module)
+    config = CrawlConfig.load(args.module)
     config = dataclasses.replace(
         config,
         website_path=args.site,

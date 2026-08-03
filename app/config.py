@@ -8,6 +8,7 @@ import importlib.util
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from types import ModuleType
 from typing import Callable, Optional
 
 from sites import DEFAULT_LAYOUT
@@ -43,9 +44,54 @@ class CrawlConfig:
     website_path: str = ''
     layout: str = DEFAULT_LAYOUT
 
+    @classmethod
+    def load(cls, name: str) -> 'CrawlConfig':
+        """Imports a crawl module by name or by file path and returns its configuration."""
+        # A file of your own, taken as written, extension and all. Anything else
+        # is the name of a module in crawls/.
+        given = Path(name).expanduser()
 
-def available_modules():
-    """The crawl module names that can be passed to load_crawl_config()."""
+        if given.is_file():
+            path = given.resolve()
+            module = import_file(path)
+        else:
+            path = module_path(name)
+
+            if not path.is_file():
+                raise CrawlModuleError(
+                    f"No crawl module named '{name}'.\n\n"
+                    'Available modules:\n'
+                    + '\n'.join(f' - {available}' for available in available_modules())
+                    + '\n\nA path to a file of your own works too, e.g. ./my-search.py'
+                )
+
+            module = importlib.import_module('crawls.' + name.replace('/', '.'))
+
+        missing = [
+            attribute for attribute in REQUIRED_ATTRIBUTES if not hasattr(module, attribute)
+        ]
+        if missing:
+            raise CrawlModuleError(
+                f'Crawl module {path} is missing: {", ".join(missing)}.\n'
+                'See app/crawls/custom/_example.py for a template.'
+            )
+
+        # Backwards compatability.
+        if hasattr(module, 'website_path'):
+            print(
+                f'Warning: {path} still sets website_path. The site is now an '
+                "argument: 'scrape <site> <module>'. The line can be removed.",
+                file=sys.stderr,
+            )
+
+        return cls(
+            name=name,
+            **{attribute: getattr(module, attribute) for attribute in REQUIRED_ATTRIBUTES},
+        )
+
+
+def available_modules() -> list[str]:
+    """The crawl module names that can be passed to CrawlConfig.load()."""
     shared = sorted(
         path.stem
         for path in CRAWLS_DIR.glob('*.py')
@@ -59,7 +105,7 @@ def available_modules():
     return shared + custom
 
 
-def module_path(name):
+def module_path(name: str) -> Path:
     """Where the file for a crawl module name is expected to be."""
     # 'custom/list-of-links' lives in the gitignored crawls/custom/ folder.
     if name.startswith('custom/'):
@@ -68,7 +114,7 @@ def module_path(name):
     return CRAWLS_DIR / f'{name}.py'
 
 
-def import_file(path):
+def import_file(path: Path) -> ModuleType:
     """Imports a crawl module from a file outside crawls/."""
     # The name only has to be unique in sys.modules; the file is what matters.
     safe_name = ''.join(c if c.isalnum() else '_' for c in path.stem)
@@ -83,44 +129,3 @@ def import_file(path):
     return module
 
 
-def load_crawl_config(name):
-    """Imports a crawl module by name or by file path and returns its configuration."""
-    # A file of your own, taken as written, extension and all. Anything else is
-    # the name of a module in crawls/.
-    given = Path(name).expanduser()
-
-    if given.is_file():
-        path = given.resolve()
-        module = import_file(path)
-    else:
-        path = module_path(name)
-
-        if not path.is_file():
-            raise CrawlModuleError(
-                f"No crawl module named '{name}'.\n\n"
-                'Available modules:\n'
-                + '\n'.join(f' - {available}' for available in available_modules())
-                + '\n\nA path to a file of your own works too, e.g. ./my-search.py'
-            )
-
-        module = importlib.import_module('crawls.' + name.replace('/', '.'))
-
-    missing = [attribute for attribute in REQUIRED_ATTRIBUTES if not hasattr(module, attribute)]
-    if missing:
-        raise CrawlModuleError(
-            f'Crawl module {path} is missing: {", ".join(missing)}.\n'
-            'See app/crawls/custom/_example.py for a template.'
-        )
-
-    # Backwards compatability.
-    if hasattr(module, 'website_path'):
-        print(
-            f'Warning: {path} still sets website_path. The site is now an '
-            "argument: 'scrape <site> <module>'. The line can be removed.",
-            file=sys.stderr,
-        )
-
-    return CrawlConfig(
-        name=name,
-        **{attribute: getattr(module, attribute) for attribute in REQUIRED_ATTRIBUTES},
-    )

@@ -22,13 +22,11 @@ from sites import ARTIFACT_NAME, PROJECTS_DIR, REGISTRY_PATH, registry
 GITHUB_API = 'https://api.github.com'
 USER_AGENT = 'drupal-helfi-scraping-tool'
 TOKEN_VARIABLES = ('GITHUB_TOKEN', 'GH_TOKEN')
-REDIRECT_CODES = (301, 302, 303, 307, 308)
 
 TOKEN_HELP = (
     'A github token is needed to download an artifact, even from a public repository.\n'
-    'Create one at https://github.com/settings/tokens and add it to .env.local:\n'
-    '\n'
-    '  GITHUB_TOKEN=...\n'
+    'Create one at https://github.com/settings/tokens and set it in the environment\n'
+    'as GITHUB_TOKEN\n'
     '\n'
     "A classic token needs the 'public_repo' scope. A fine grained token needs\n"
     'read access to Actions on the repository.'
@@ -39,14 +37,14 @@ class DownloadError(Exception):
     """Raised when a copy of a site cannot be fetched or unpacked."""
 
 
-def github_token() -> tuple[Optional[str], Optional[str]]:
-    """The token to talk to github with, and the variable it came from."""
+def github_token() -> Optional[str]:
+    """The token to talk to github with."""
     for name in TOKEN_VARIABLES:
         value = (os.environ.get(name) or '').strip()
         if value:
-            return value, name
+            return value
 
-    return None, None
+    return None
 
 
 def github_request(url: str, token: Optional[str]) -> urllib.request.Request:
@@ -64,14 +62,13 @@ def github_request(url: str, token: Optional[str]) -> urllib.request.Request:
 def github_error(error: urllib.error.HTTPError, url: str) -> DownloadError:
     """A DownloadError explaining an http error from the github api."""
     if error.code == 401:
-        detail = 'The token was rejected. Check GITHUB_TOKEN in .env.local.'
+        detail = 'The token was rejected. Check the token in the environment.'
     elif error.code == 403:
         if error.headers.get('x-ratelimit-remaining') == '0':
             detail = 'Rate limited by github. Try again in a while.'
         else:
             detail = (
-                'Access denied. If the organisation uses single sign-on, the token '
-                'has to be authorised for it.'
+                'Access denied.'
             )
     elif error.code == 404:
         detail = 'Not found. Check the repository name, and that the token can read it.'
@@ -92,49 +89,18 @@ def github_json(url: str, token: Optional[str]) -> dict:
         raise DownloadError(f'Could not reach {url}: {error.reason}')
 
 
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    """Stops urllib from following github's redirect on our behalf."""
+class DropToken(urllib.request.HTTPRedirectHandler):
+    """Leaves the github token behind when a redirect leads off github."""
 
-    # The arguments are urllib's to pass, so they are left as it declares them.
-    def redirect_request(self, req, fp, code, msg, headers, newurl) -> None:
-        return None
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
 
+        # urllib copies every header onto the redirected request. The artifact
+        # redirect points at storage with the credentials already in the url.
+        if redirected is not None:
+            redirected.headers.pop('Authorization', None)
 
-def open_artifact(url: str, token: str) -> http.client.HTTPResponse:
-    """Opens the artifact zip for reading."""
-    opener = urllib.request.build_opener(NoRedirect)
-
-    try:
-        return opener.open(github_request(url, token))
-    except urllib.error.HTTPError as error:
-        location = error.headers.get('Location') if error.code in REDIRECT_CODES else None
-        if not location:
-            raise github_error(error, url)
-    except urllib.error.URLError as error:
-        raise DownloadError(f'Could not reach {url}: {error.reason}')
-
-    # The redirect points at storage with the credentials already in the url,
-    # and it answers with an error if an Authorization header comes along too.
-    try:
-        return urllib.request.urlopen(
-            urllib.request.Request(location, headers={'User-Agent': USER_AGENT})
-        )
-    except urllib.error.HTTPError as error:
-        raise github_error(error, location)
-    except urllib.error.URLError as error:
-        raise DownloadError(f'Could not reach the artifact: {error.reason}')
-
-
-def open_url(url: str) -> http.client.HTTPResponse:
-    """Opens a plain zip url for reading, the way the core copy is served."""
-    try:
-        return urllib.request.urlopen(
-            urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-        )
-    except urllib.error.HTTPError as error:
-        raise DownloadError(f'{url}\n  the server said {error.code}: {error.reason}')
-    except urllib.error.URLError as error:
-        raise DownloadError(f'Could not reach {url}: {error.reason}')
+        return redirected
 
 
 def megabytes(count: int) -> str:
@@ -246,9 +212,7 @@ def latest_artifact(repo: str, token: str, allow_failed: bool) -> tuple[dict, di
         f"No usable '{ARTIFACT_NAME}' artifact in {repo}"
         + (f' ({", ".join(problems)})' if problems else '')
         + '.\n'
-        f'Artifacts are kept for 40 days, so the workflow may need to be run again:\n'
-        f'  https://github.com/{repo}/actions'
-        + ('\nOr pass --allow-failed to take the copy from a failed run.' if unsuccessful else '')
+        + ('\nPass --allow-failed to take the copy from a failed run.' if unsuccessful else '')
     )
 
 
@@ -261,24 +225,17 @@ def install_unpacked(unpacked: Path, domain: str) -> None:
             f'site.\nIt contains: {contents or "(nothing)"}'
         )
 
-    # A kopio zip is a whole httrack run, so the copy is everything in it and
-    # the pages are one folder in. Keeping all of it is what makes the other
-    # hosts it mirrored a detail of the copy instead of sites of their own.
+    # A kopio zip contains other hosts in addition to www.hel.fi.
+    # Unpack the kopio archive to a subdirectory.
     source = unpacked if registry.site(domain).layout == 'kopio' else unpacked / domain
     final = PROJECTS_DIR / domain
 
     print(f'Moving the copy into {PROJECTS_DIR}')
 
-    # Removing the previous copy rather than writing over it is what makes a page
-    # that no longer exists disappear from it. Nothing is kept aside in case the
-    # move fails: a download is repeatable, and running it again is a better
-    # answer than the bookkeeping that keeping a spare copy of two gigabytes
-    # would take.
+    # Remove the previous copy rather than write over it.
     if final.exists():
         shutil.rmtree(final)
 
-    # A rename when the temporary directory is on the same filesystem as
-    # projects/, a file by file copy when it is not.
     shutil.move(source, final)
 
 
@@ -297,8 +254,7 @@ def install_zip(response: http.client.HTTPResponse, domain: str) -> None:
             stream_to_file(response, archive)
 
         print('Unpacking')
-        # extractall keeps every member inside the destination, absolute paths
-        # and .. in the zip included.
+
         try:
             with zipfile.ZipFile(archive) as zipped:
                 zipped.extractall(unpacked)
@@ -308,8 +264,7 @@ def install_zip(response: http.client.HTTPResponse, domain: str) -> None:
                 'unpack.\nCheck that the address still serves the copy.'
             )
 
-        # The zip is of no use once it is unpacked, and deleting it here keeps the
-        # disk from holding it and both copies of the site at the same time.
+        # Remove the zip.
         archive.unlink()
 
         install_unpacked(unpacked, domain)
@@ -321,12 +276,18 @@ def download_zip(url: str, domain: str) -> None:
     """Downloads and unpacks a plain zip file, the way the core copy arrives."""
     print(f'Downloading {url}')
 
-    install_zip(open_url(url), domain)
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': USER_AGENT})) as response:
+            install_zip(response, domain)
+    except urllib.error.HTTPError as error:
+        raise DownloadError(f'{url}\n  the server said {error.code}: {error.reason}')
+    except urllib.error.URLError as error:
+        raise DownloadError(f'Could not reach {url}: {error.reason}')
 
 
 def download_artifact(domain: str, repo: str, allow_failed: bool) -> None:
     """Downloads and unpacks the copy a github workflow made of a site."""
-    token, _source = github_token()
+    token = github_token()
     if not token:
         raise DownloadError(TOKEN_HELP)
 
@@ -336,11 +297,19 @@ def download_artifact(domain: str, repo: str, allow_failed: bool) -> None:
     print(
         f'Found the copy from {artifact.get("created_at", "?")[:10]}, '
         f'run {run.get("run_number", "?")} '
-        f'({run.get("head_sha", "")[:7]}, {run.get("conclusion")})'
+        f'({run.get("conclusion")})'
     )
     print(f'  {run.get("html_url")}')
 
-    install_zip(open_artifact(artifact['archive_download_url'], token), domain)
+    opener = urllib.request.build_opener(DropToken)
+
+    try:
+        with opener.open(github_request(url, token)) as response:
+            install_zip(response, domain)
+    except urllib.error.HTTPError as error:
+        raise github_error(error, url)
+    except urllib.error.URLError as error:
+        raise DownloadError(f'Could not reach {url}: {error.reason}')
 
 
 def prepare_projects_dir() -> None:
