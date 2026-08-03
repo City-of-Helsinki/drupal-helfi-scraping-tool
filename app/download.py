@@ -16,6 +16,7 @@ import zipfile
 from pathlib import Path
 from typing import Iterator, Optional
 
+from progress import ProgressBar, human_readable_time
 from sites import ARTIFACT_NAME, PROJECTS_DIR, REGISTRY_PATH, registry
 
 GITHUB_API = 'https://api.github.com'
@@ -141,12 +142,30 @@ def megabytes(count: int) -> str:
     return f'{size:.1f} MB' if size < 10 else f'{size:.0f} MB'
 
 
+def download_fields(copied: int, total: int, elapsed: float) -> list[str]:
+    """How a download in progress is worded, in the order it is read."""
+    fields = [f'{megabytes(copied)} of {megabytes(total)}' if total else megabytes(copied)]
+
+    # A rate needs some time to have passed to mean anything, and without one
+    # there is nothing to work a remaining time out of either.
+    rate = copied / elapsed if elapsed > 0.5 else 0
+    if rate:
+        fields.append(f'{megabytes(rate)}/s')
+
+    if rate and total > copied:
+        fields.append(f'{human_readable_time((total - copied) / rate)} left')
+
+    return fields
+
+
 def stream_to_file(response: http.client.HTTPResponse, destination: Path) -> None:
     """Copies the response into a file, reporting how it is going."""
     total = int(response.headers.get('Content-Length') or 0)
     copied = 0
-    # Nothing to report until the download has been going for a while.
-    reported = time.monotonic()
+    started = time.monotonic()
+    # A server that does not say how large the file is leaves the bar out, so the
+    # report is then the bytes as they arrive.
+    progress = ProgressBar(total, prefix='  ')
 
     with open(destination, 'wb') as target:
         while True:
@@ -157,20 +176,12 @@ def stream_to_file(response: http.client.HTTPResponse, destination: Path) -> Non
             target.write(chunk)
             copied += len(chunk)
 
-            now = time.monotonic()
-            if now - reported > 1:
-                reported = now
-                if total:
-                    print(
-                        f'  {copied / total * 100:.0f}% of {megabytes(total)}',
-                        end='\r',
-                        flush=True,
-                    )
-                else:
-                    print(f'  {megabytes(copied)}', end='\r', flush=True)
+            progress.update(
+                copied, download_fields(copied, total, time.monotonic() - started)
+            )
 
-    # Wide enough to wipe the progress that was left on the line.
-    print(f'\r  {megabytes(copied)} downloaded.'.ljust(30))
+    progress.clear()
+    print(f'  {megabytes(copied)} downloaded.')
 
 
 def artifacts_in(repo: str, token: str) -> Iterator[dict]:

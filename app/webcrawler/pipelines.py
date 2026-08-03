@@ -19,16 +19,16 @@ class JsonExportPipeline:
     def from_crawler(cls, crawler):
         return cls(output_path=crawler.settings.get('SCRAPED_DATA_OUTPUT'))
 
-    def open_spider(self, spider):
+    def open_spider(self):
         self.file = open(self.output_path, 'w', encoding='utf-8')
         self.file.write('[')
         self.item_count = 0
 
-    def close_spider(self, spider):
+    def close_spider(self):
         self.file.write('\n]')
         self.file.close()
 
-    def process_item(self, item, spider):
+    def process_item(self, item):
         # An aborted run can close the file while an item is still on its way here.
         if self.file.closed:
             return item

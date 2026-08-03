@@ -7,19 +7,8 @@ import re  # import the regex library
 from bs4 import BeautifulSoup
 from w3lib.url import safe_url_string
 
+from progress import ProgressBar, human_readable_time
 from sites import registry
-
-def human_readable_time(seconds):
-    """Converts time in seconds to a human-readable string."""
-    hours, remainder = divmod(seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    if hours:
-        return f"{int(hours)}h, {int(minutes)}m, {int(seconds)}s"
-    elif minutes:
-        return f"{int(minutes)}m {int(seconds)}s"
-    else:
-        return f"{int(seconds)}s"
 
 def worker_count(configured=None):
     """How many worker processes to use. Defaults to every core available."""
@@ -144,6 +133,9 @@ class HelficopySpider(scrapy.Spider):
 
     custom_settings = {
         'ITEM_PIPELINES': {'webcrawler.pipelines.JsonExportPipeline': 300},
+        # Nothing is ever downloaded, so the periodic stats would only report
+        # zero pages crawled, in the middle of the progress bar.
+        'LOGSTATS_INTERVAL': 0,
     }
 
     def __init__(self, config=None, workers=None, *args, **kwargs):
@@ -153,6 +145,7 @@ class HelficopySpider(scrapy.Spider):
         self.processed_files = 0
         self.all_start_time = None  # Initialize the all_start_time
         self.start_time = None  # Initialize the start_time
+        self.progress = None  # Set up once the number of files is known
         self.config = config
         self.website_path = config.website_path # Website path from the crawl module
         self.folder_path = registry.folder_path(self.website_path)
@@ -172,35 +165,43 @@ class HelficopySpider(scrapy.Spider):
         )
 
     def closed(self, reason):
+        # Also runs when the spider never got as far as counting the files.
+        if self.progress is not None:
+            self.progress.clear()
+
         self.pool.terminate()
         self.pool.join()
 
     async def start(self):
 
-        print(f"Using crawl module: {self.config.name}")
-        print(f"Scraping site: {self.website_path} ({self.config.layout} copy)")
-        print(f"Scraping files from {self.folder_path} with {self.workers} workers")
+        # What the run was asked to do is only worth reading when something looks
+        # wrong with the result, so it is logged rather than printed.
+        self.logger.info(f"Using crawl module: {self.config.name}")
+        self.logger.info(f"Scraping site: {self.website_path} ({self.config.layout} copy)")
+        self.logger.info(f"Scraping files from {self.folder_path} with {self.workers} workers")
 
         self.all_start_time = time.time()  # Record the start time
 
         # if use_path_regex:
         if self.config.regex_path_include_pattern is not None:
-            print(f"Including file paths using pattern: {self.config.regex_path_include_pattern}")
+            self.logger.info(f"Including file paths using pattern: {self.config.regex_path_include_pattern}")
 
         if self.config.regex_path_exclude_pattern is not None:
-            print(f"Excluding file paths using pattern: {self.config.regex_path_exclude_pattern}")
+            self.logger.info(f"Excluding file paths using pattern: {self.config.regex_path_exclude_pattern}")
 
         if self.config.regex_content_include_pattern is not None:
-            print(f"Filtering file contents using pattern: {self.config.regex_content_include_pattern}")
+            self.logger.info(f"Filtering file contents using pattern: {self.config.regex_content_include_pattern}")
 
         if self.config.regex_content_exclude_pattern is not None:
-            print(f"Excluding file contents using pattern: {self.config.regex_content_exclude_pattern}")
+            self.logger.info(f"Excluding file contents using pattern: {self.config.regex_content_exclude_pattern}")
 
         filtered_files = self.filtered_files()
         self.total_files = len(filtered_files)
 
-        print(f"Found {self.total_files} files to scrape in {human_readable_time(time.time() - self.all_start_time)}")
+        self.logger.info(f"Found {self.total_files} files to scrape in {human_readable_time(time.time() - self.all_start_time)}")
 
+        self.progress = ProgressBar(self.total_files)
+        self.progress.keep_clear_of_logging()
         self.start_time = time.time()  # Record the start time
 
         # Actual scraping happens in the worker processes. imap keeps the results in
@@ -254,13 +255,30 @@ class HelficopySpider(scrapy.Spider):
         ]
 
     def log_progress(self, url):
-        """One line per file scraped, at INFO so --log-level can turn it off."""
-        percentage_complete = (self.processed_files / self.total_files) * 100
+        """How far along the run is.
 
+        On a terminal this is one line redrawn in place. Anywhere else it is one
+        line per file scraped, at INFO so --log-level can turn it off.
+        """
         # Calculate elapsed and remaining time
         elapsed_time = time.time() - self.start_time
         all_elapsed_time = time.time() - self.all_start_time
         remaining_time = ((self.total_files - self.processed_files) / self.processed_files) * elapsed_time
+
+        if self.progress.enabled:
+            self.progress.update(
+                self.processed_files,
+                [
+                    f"{self.processed_files}/{self.total_files}",
+                    f"{self.matches} matches",
+                    human_readable_time(all_elapsed_time),
+                    f"{human_readable_time(remaining_time)} left",
+                ],
+                url,
+            )
+            return
+
+        percentage_complete = (self.processed_files / self.total_files) * 100
 
         # Convert elapsed and remaining time to human-readable strings
         remaining_time_str = human_readable_time(remaining_time)

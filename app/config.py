@@ -68,33 +68,6 @@ def module_path(name):
     return CRAWLS_DIR / f'{name}.py'
 
 
-def looks_like_path(name):
-    """Whether a name was meant as a file of your own rather than a module name.
-
-    'custom/my-search' is a module name even though it has a slash in it, so the
-    question is about the shape of the rest: an extension or a leading ./, / or ~.
-    """
-    return name.endswith('.py') or name.startswith(('.', '/', '~'))
-
-
-def local_module_file(name):
-    """The file a crawl module name points at, or None if it points at nothing.
-
-    Looked at before crawls/, so a file of your own wins over a module of the
-    same name in the repository.
-    """
-    given = Path(name).expanduser()
-    candidates = [given]
-    if given.suffix != '.py':
-        candidates.append(given.with_name(given.name + '.py'))
-
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate.resolve()
-
-    return None
-
-
 def import_file(path):
     """Imports a crawl module from a file outside crawls/."""
     # The name only has to be unique in sys.modules; the file is what matters.
@@ -112,31 +85,16 @@ def import_file(path):
 
 def load_crawl_config(name):
     """Imports a crawl module by name or by file path and returns its configuration."""
-    path = local_module_file(name)
+    # A file of your own, taken as written, extension and all. Anything else is
+    # the name of a module in crawls/.
+    given = Path(name).expanduser()
 
-    if path is not None:
-        # Worth saying out loud: the module that ran is not the one whose name
-        # is in the repository.
-        if name in available_modules():
-            print(
-                f'Using {path} rather than the crawl module named {name}.',
-                file=sys.stderr,
-            )
-
+    if given.is_file():
+        path = given.resolve()
         module = import_file(path)
     else:
-        # A name that was written as a path is a path that is not there, rather
-        # than a module name to look for in crawls/.
-        if looks_like_path(name):
-            raise CrawlModuleError(
-                f'There is no file at {Path(name).expanduser().resolve()}.'
-            )
-
         path = module_path(name)
 
-        # Checked up front so that a typo is reported as a typo. An ImportError
-        # raised from inside a module that does exist is the author's own bug and
-        # is left to propagate with its traceback intact.
         if not path.is_file():
             raise CrawlModuleError(
                 f"No crawl module named '{name}'.\n\n"
@@ -154,8 +112,7 @@ def load_crawl_config(name):
             'See app/crawls/custom/_example.py for a template.'
         )
 
-    # It used to be the module that picked the site. Saying so beats leaving
-    # someone to wonder why editing that line changes nothing.
+    # Backwards compatability.
     if hasattr(module, 'website_path'):
         print(
             f'Warning: {path} still sets website_path. The site is now an '

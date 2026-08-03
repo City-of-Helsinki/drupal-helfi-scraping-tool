@@ -221,9 +221,6 @@ def build_parser():
         epilog=(
             'Available sites:\n' + registry.known_sites()
             + '\n\nAvailable crawl modules:\n' + module_list()
-            + '\n\nA crawl module can also be a file of your own, given as a path:\n'
-            '  scrape scrape www.hel.fi ./my-search.py\n'
-            'A file wins over a module of the same name in the repository.'
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -236,8 +233,7 @@ def build_parser():
         'module',
         nargs='?',
         help=(
-            'crawl module to use: a name like quotes or custom/my-search, or a '
-            'path to a file of your own like ./my-search.py'
+            'crawl module to use or a path to a file of your own like ./my-search.py'
         ),
     )
     scrape.add_argument(
@@ -253,9 +249,9 @@ def build_parser():
     )
     scrape.add_argument(
         '--log-level',
-        default='INFO',
+        default='WARNING',
         choices=LOG_LEVELS,
-        help='how noisy the crawl should be (default: INFO)',
+        help='how noisy the crawl should be (default: WARNING)',
     )
     scrape.set_defaults(handler=command_scrape, parser=scrape)
 
@@ -304,8 +300,6 @@ def build_parser():
 
 
 def main(argv=None):
-    # Building the parser reads sites.toml for the help text, so an unreadable
-    # registry has to be caught here rather than around the handler alone.
     try:
         parser = build_parser()
         args = parser.parse_args(argv)
