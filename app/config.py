@@ -11,8 +11,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Callable, Optional
 
-from paths import APP_DIR
-from sites import DEFAULT_LAYOUT
+from app.paths import APP_DIR
+from app.sites import DEFAULT_LAYOUT
 
 # The crawl modules that ship with the tool. Anything else is given as a path to
 # a file, so a module of your own can sit wherever you keep it.
@@ -68,7 +68,7 @@ class CrawlConfig:
                     + '\n\nA path to a file of your own works too, e.g. ./my-search.py'
                 )
 
-            module = importlib.import_module('crawls.' + name)
+            module = importlib.import_module('app.crawls.' + name)
 
         missing = [
             attribute for attribute in REQUIRED_ATTRIBUTES if not hasattr(module, attribute)
@@ -83,7 +83,8 @@ class CrawlConfig:
         if hasattr(module, 'website_path'):
             print(
                 f'Warning: {path} still sets website_path. The site is now an '
-                "argument: 'scrape <site> <module>'. The line can be removed.",
+                "argument: 'scraping-tool scrape <site> <module>'. The line can "
+                'be removed.',
                 file=sys.stderr,
             )
 

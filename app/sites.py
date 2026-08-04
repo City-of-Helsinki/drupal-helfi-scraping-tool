@@ -7,7 +7,7 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional
 
-from paths import APP_DIR, DATA_DIR, REPO_ROOT, in_config_dir
+from app.paths import APP_DIR, DATA_DIR, REPO_ROOT, in_config_dir
 
 PROJECTS_ENVIRONMENT_VARIABLE = 'SCRAPING_TOOL_PROJECTS_DIR'
 

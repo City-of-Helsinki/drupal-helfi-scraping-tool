@@ -17,8 +17,13 @@ import zipfile
 from pathlib import Path
 from typing import Iterator, Optional
 
-from progress import ProgressBar, human_readable_time
-from sites import ARTIFACT_NAME, PROJECTS_DIR, REGISTRY_PATH, registry
+from app.progress import ProgressBar, human_readable_time
+from app.sites import (
+    ARTIFACT_NAME,
+    PROJECTS_DIR,
+    REGISTRY_PATH,
+    registry,
+)
 
 GITHUB_API = 'https://api.github.com'
 USER_AGENT = 'drupal-helfi-scraping-tool'

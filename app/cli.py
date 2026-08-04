@@ -10,24 +10,27 @@ import signal
 import sys
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
-
 LOG_LEVELS = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
 
 # Relative, so a run writes into the directory it was started from.
 DEFAULT_OUTPUT = 'scraped_data.json'
 
-# crawls/ and webcrawler/ are imported by name.
-if str(APP_DIR) not in sys.path:
-    sys.path.insert(0, str(APP_DIR))
-
 # Lets scrapy find the project settings without relying on scrapy.cfg discovery.
-os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'webcrawler.settings')
+os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'app.webcrawler.settings')
 
-from config import CRAWLS_DIR, CrawlConfig, CrawlModuleError, available_modules
-from download import DownloadError, download_site, github_access_name
-from paths import CONFIG_DIR, DATA_DIR
-from sites import (
+from app.config import (
+    CRAWLS_DIR,
+    CrawlConfig,
+    CrawlModuleError,
+    available_modules,
+)
+from app.download import (
+    DownloadError,
+    download_site,
+    github_access_name,
+)
+from app.paths import APP_DIR, CONFIG_DIR, DATA_DIR
+from app.sites import (
     PROJECTS_DIR,
     PROJECTS_ENVIRONMENT_VARIABLE,
     REGISTRY_PATH,
@@ -35,7 +38,7 @@ from sites import (
     registry,
     site_domain,
 )
-from webcrawler.pipelines import STDOUT_PATH, to_stdout
+from app.webcrawler.pipelines import STDOUT_PATH, to_stdout
 
 
 class CommandError(Exception):
@@ -84,7 +87,7 @@ def user_directory(path):
         return 'none, there is no home directory'
 
     if not path.is_dir():
-        return f'{path} (not there, the app folder is used instead)'
+        return f'{path} (not there, the program folder is used instead)'
 
     return str(path)
 
@@ -95,7 +98,7 @@ def resolved_from(path):
         if root is not None and Path(path).is_relative_to(root):
             return name
 
-    return 'app folder'
+    return 'program folder'
 
 
 def command_env(args):
@@ -108,7 +111,7 @@ def command_env(args):
     # This is the command people run when something is wrong, so it reports
     # missing dependencies instead of failing on them.
     try:
-        from webcrawler.spiders.helficopy import worker_count
+        from app.webcrawler.spiders.helficopy import worker_count
         default_workers = worker_count()
     except ImportError:
         default_workers = 'unknown, dependencies are missing'
@@ -130,7 +133,7 @@ def command_env(args):
     else:
         copies_from = resolved_from(PROJECTS_DIR)
 
-    print(f'app directory:    {APP_DIR}')
+    print(f'program folder:   {APP_DIR}')
     print(f'config directory: {user_directory(CONFIG_DIR)}')
     print(f'data directory:   {user_directory(DATA_DIR)}')
     print(f'site copies:      {PROJECTS_DIR} ({copies_from}, {copies})')
@@ -151,7 +154,7 @@ def command_download(args):
     # name rather than falling back to whichever site a default would pick.
     if not args.site:
         raise CommandError(
-            'No site given. Run: scrape sites download <site>\n\nKnown sites:\n'
+            'No site given. Run: scraping-tool sites download <site>\n\nKnown sites:\n'
             + registry.known_sites()
         )
 
@@ -169,8 +172,8 @@ def missing_site(site):
     if present:
         message += f'Downloaded sites: {", ".join(present)}.\n'
     message += (
-        f"Run 'scrape sites download {site_domain(site)}', or 'scrape sites' to "
-        f'see the choices.'
+        f"Run 'scraping-tool sites download {site_domain(site)}', or "
+        f"'scraping-tool sites' to see the choices."
     )
 
     return message
@@ -200,7 +203,7 @@ def command_scrape(args):
 
     from scrapy.crawler import CrawlerProcess
     from scrapy.utils.project import get_project_settings
-    from webcrawler.spiders.helficopy import HelficopySpider
+    from app.webcrawler.spiders.helficopy import HelficopySpider
 
     settings = get_project_settings()
     settings.set('LOG_LEVEL', args.log_level)
@@ -224,7 +227,7 @@ def command_scrape(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        prog='scrape',
+        prog='scraping-tool',
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

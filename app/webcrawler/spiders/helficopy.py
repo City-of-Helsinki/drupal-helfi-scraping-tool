@@ -7,9 +7,9 @@ import re
 from bs4 import BeautifulSoup
 from w3lib.url import safe_url_string
 
-from progress import ProgressBar, human_readable_time
-from sites import registry
-from webcrawler.pipelines import to_stdout
+from app.progress import ProgressBar, human_readable_time
+from app.sites import registry
+from app.webcrawler.pipelines import to_stdout
 
 def worker_count(configured=None):
     """How many worker processes to use. Defaults to every core available."""
@@ -132,7 +132,9 @@ class HelficopySpider(scrapy.Spider):
     name = "helficopy"
 
     custom_settings = {
-        'ITEM_PIPELINES': {'webcrawler.pipelines.JsonExportPipeline': 300},
+        'ITEM_PIPELINES': {
+            'app.webcrawler.pipelines.JsonExportPipeline': 300,
+        },
         # Nothing is ever downloaded, so the periodic stats would only report
         # zero pages crawled, in the middle of the progress bar.
         'LOGSTATS_INTERVAL': 0,

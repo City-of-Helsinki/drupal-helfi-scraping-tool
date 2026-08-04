@@ -6,6 +6,8 @@
 #
 # Every location falls back to the folder the code sits in when the user
 # directory is not there, which is what a git checkout of this repository uses.
+# For a copy installed with pipx that folder is inside the virtual environment,
+# so the fallbacks are only reached there when the user has no home directory.
 
 import os
 from pathlib import Path
@@ -34,7 +36,7 @@ def user_dir(variable, default) -> Optional[Path]:
     except RuntimeError:
         # No $HOME and no passwd entry for this user, which is how the container
         # runs. There is no user directory to speak of, so everything falls back
-        # to the app folder.
+        # to the program folder.
         return None
 
     return home / default / APP_NAME

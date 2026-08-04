@@ -3,11 +3,11 @@
 #
 # The site is not set here, it is given on the command line:
 #
-#   ./scrape scrape www.hel.fi ./my-search.py       search all pages
-#   ./scrape scrape www.hel.fi/fi ./my-search.py    only the Finnish pages
-#   ./scrape scrape historia.hel.fi ./my-search.py  another site entirely
+#   scraping-tool scrape www.hel.fi ./my-search.py       search all pages
+#   scraping-tool scrape www.hel.fi/fi ./my-search.py    only the Finnish pages
+#   scraping-tool scrape historia.hel.fi ./my-search.py  another site entirely
 #
-# Run './scrape sites' to see which sites have been downloaded.
+# Run 'scraping-tool sites' to see which sites have been downloaded.
 
 # By default all regex matching is off
 regex_path_include_pattern = None # This turns off include filtering

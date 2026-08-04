@@ -2,12 +2,15 @@ services:
   scrapy_service:
     build: .
     volumes:
-      - ./app:/usr/src/app
+      # Where the editable install of the package points, so the code that runs
+      # is the code in the repository. It is also the working directory, so a
+      # scrape writes its results next to it.
+      - .:/usr/src
       - ./projects:/projects
     user: ${MY_UID}:${MY_GID}
     environment:
-      # The site copies are mounted outside the app directory, so the tool is
-      # told where they are instead of working it out from its own location.
+      # The site copies are mounted outside the repository, so the tool is told
+      # where they are instead of working it out from its own location.
       SCRAPING_TOOL_PROJECTS_DIR: /projects
     tty: true
     stdin_open: true

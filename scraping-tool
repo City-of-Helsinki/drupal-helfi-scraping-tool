@@ -3,7 +3,7 @@
 # Runs the scraping tool inside Docker, so that python does not have to be
 # installed.
 #
-# Overridable:
+# Variables:
 #   MY_UID / MY_GID     which user the container writes files as
 #   DOCKER_COMPOSE_CMD  e.g. 'docker-compose' or 'podman compose'
 
