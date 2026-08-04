@@ -11,6 +11,40 @@ Siteimprove is still lacking when we want to get the actual contents of thousand
 
 This scraping tool helps to fill that need.
 
+## Installing
+
+### With pipx
+
+Install [pipx]([https://pipx.pypa.io/](https://pipx.pypa.io/stable/how-to/install-pipx.html)).
+
+```
+pipx install git+https://github.com/City-of-Helsinki/drupal-helfi-scraping-tool.git
+pipx upgrade scraping-tool
+```
+
+### With Docker
+
+```
+git clone https://github.com/City-of-Helsinki/drupal-helfi-scraping-tool.git
+cd drupal-helfi-scraping-tool
+./scraping-tool build
+```
+
+The `./scraping-tool` wrapper runs the tool inside the container, so every
+command in this README needs to be prefixed with `./` in this setup.
+
+### Github access
+
+Sites other than www.hel.fi need github credentials to download the html dump. Either
+install the [github cli](https://cli.github.com/) and run `gh auth login`, or put
+a token in the environment as `GITHUB_TOKEN`. Create a token at
+https://github.com/settings/tokens with the `public_repo` scope, or a fine
+grained token with read access to Actions.
+
+If running in Docker, the container does not see `gh` tool from host. Copy
+[.env.local.example](.env.local.example) to `.env.local` and put the token
+there.
+
 ## How it works
 
 * This tool is a command line program that scrapes offline copy of hel.fi sites.
@@ -40,14 +74,6 @@ Site dumps update once per day. Run `scraping-tool sites download <site>` to re-
 1. Add `.github/workflows/scraping-tool.yml` to the site's own repository. See the "Scraping tool mirror" section of [drupal-gh-actions](https://github.com/City-of-Helsinki/drupal-gh-actions#scraping-tool-mirror).
 2. Run it once from **Actions > Build scraping tool artifact > Run workflow**.
 3. Add the site to [app/sites.toml](app/sites.toml) and commit.
-
-### Github access
-
-Sites other than www.hel.fi need github credentials to download the html dump. Either
-install the [github cli](https://cli.github.com/) and run `gh auth login`, or put
-a token in the environment as `GITHUB_TOKEN`. Create a token at
-https://github.com/settings/tokens with the `public_repo` scope, or a fine
-grained token with read access to Actions.
 
 ## Usage
 
