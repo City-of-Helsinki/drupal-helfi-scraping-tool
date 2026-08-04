@@ -2,10 +2,8 @@
 #
 # Keys:
 #   repo         github repository running .github/workflows/scraping-tool.yml
-#   url          zip file to download instead, for sites without that workflow
-#   layout       'wget2' for the workflow copies, 'kopio' for the core site.
-#                It says both how to turn a file path back into a url and where
-#                inside projects/<domain>/ the pages of the site are.
+#   url          zip file to download instead, for sites without that workflow.
+#                A site downloaded this way is read as an httrack copy.
 #
 # Adding new site.
 # 1. First add the workflow to the site, see example in city-of-helsinki/drupal-gh-actions.
@@ -14,12 +12,10 @@
 #   [sites."esimerkki.hel.fi"]
 #   repo = "city-of-helsinki/esimerkki"
 #
-# This is the list of sites there are: a site has to be listed here before it
-# can be downloaded or scraped.
+# A site has to be listed here before it can be downloaded or scraped.
 
 [sites."www.hel.fi"]
 url = "http://kopio.hel.fi/latest_html.zip"
-layout = "kopio"
 
 [sites."historia.hel.fi"]
 repo = "city-of-helsinki/historiaportaali"

@@ -3,19 +3,15 @@
 """
 
 import argparse
-import dataclasses
 import datetime
 import os
 import signal
 import sys
-from pathlib import Path
 
 LOG_LEVELS = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
 
-# Relative, so a run writes into the directory it was started from.
 DEFAULT_OUTPUT = 'scraped_data.json'
 
-# Lets scrapy find the project settings without relying on scrapy.cfg discovery.
 os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'app.webcrawler.settings')
 
 from app.config import (
@@ -27,12 +23,11 @@ from app.config import (
 from app.download import (
     DownloadError,
     download_site,
-    github_access_name,
+    github_access,
 )
-from app.paths import APP_DIR, CONFIG_DIR, DATA_DIR
+from app.paths import CONFIG_DIR
 from app.sites import (
     PROJECTS_DIR,
-    PROJECTS_ENVIRONMENT_VARIABLE,
     REGISTRY_PATH,
     SiteError,
     registry,
@@ -81,26 +76,6 @@ def command_sites(args):
         print(f'  {name:<38}{state:<13}{source}')
 
 
-def user_directory(path):
-    """One of the directories under $HOME, and whether it is being used."""
-    if path is None:
-        return 'none, there is no home directory'
-
-    if not path.is_dir():
-        return f'{path} (not there, the program folder is used instead)'
-
-    return str(path)
-
-
-def resolved_from(path):
-    """Which of the directories a path that has a fallback ended up in."""
-    for root, name in ((CONFIG_DIR, 'config directory'), (DATA_DIR, 'data directory')):
-        if root is not None and Path(path).is_relative_to(root):
-            return name
-
-    return 'program folder'
-
-
 def command_env(args):
     try:
         import scrapy
@@ -108,40 +83,20 @@ def command_env(args):
     except ImportError:
         scrapy_version = 'not installed'
 
-    # This is the command people run when something is wrong, so it reports
-    # missing dependencies instead of failing on them.
-    try:
-        from app.webcrawler.spiders.helficopy import worker_count
-        default_workers = worker_count()
-    except ImportError:
-        default_workers = 'unknown, dependencies are missing'
-
-    if PROJECTS_DIR.is_dir():
-        downloaded = sum(1 for name in registry.sites if registry.downloaded_at(name))
-        copies = f'{downloaded} downloaded'
-    else:
-        copies = 'missing, run download'
-
     listed = f'{len(registry.sites)} sites'
 
-    access = github_access_name() or 'none, needed to download artifacts'
+    # What the tool would use to reach github
+    try:
+        access = github_access().name
+    except DownloadError:
+        access = 'none'
 
-    # Where the site copies came from is worth spelling out, since the
-    # environment variable overrides both directories.
-    if (os.environ.get(PROJECTS_ENVIRONMENT_VARIABLE) or '').strip():
-        copies_from = PROJECTS_ENVIRONMENT_VARIABLE
-    else:
-        copies_from = resolved_from(PROJECTS_DIR)
-
-    print(f'program folder:   {APP_DIR}')
-    print(f'config directory: {user_directory(CONFIG_DIR)}')
-    print(f'data directory:   {user_directory(DATA_DIR)}')
-    print(f'site copies:      {PROJECTS_DIR} ({copies_from}, {copies})')
-    print(f'site registry:    {REGISTRY_PATH} ({resolved_from(REGISTRY_PATH)}, {listed})')
+    print(f'config directory: {CONFIG_DIR}')
+    print(f'site copies:      {PROJECTS_DIR}')
+    print(f'site registry:    {REGISTRY_PATH} ({listed})')
     print(f'crawl modules:    {CRAWLS_DIR}')
     print(f'github access:    {access}')
     print(f'default output:   {os.path.abspath(DEFAULT_OUTPUT)}')
-    print(f'default workers:  {default_workers}')
     print(f'python:           {sys.version.split()[0]}')
     print(f'scrapy:           {scrapy_version}')
 
@@ -150,8 +105,6 @@ def command_env(args):
 
 
 def command_download(args):
-    # A download replaces a two gigabyte copy, so it is always asked for by
-    # name rather than falling back to whichever site a default would pick.
     if not args.site:
         raise CommandError(
             'No site given. Run: scraping-tool sites download <site>\n\nKnown sites:\n'
@@ -188,15 +141,7 @@ def command_scrape(args):
     if args.workers is not None and args.workers < 1:
         raise CommandError('--workers has to be at least 1.')
 
-    entry = registry.site(args.site)
-    config = CrawlConfig.load(args.module)
-
-    # Bind CrawConfig to the site we have loaded.
-    config = dataclasses.replace(
-        config,
-        website_path=args.site,
-        layout=entry.layout,
-    )
+    config = CrawlConfig.load(args.module, args.site)
 
     if not registry.exists(args.site):
         raise CommandError(missing_site(args.site))

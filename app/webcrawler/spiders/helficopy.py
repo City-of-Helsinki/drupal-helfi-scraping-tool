@@ -33,7 +33,7 @@ class WorkerState:
     def __init__(self, config, folder_path):
         self.folder_path = folder_path
         self.website_path = config.website_path
-        self.layout = config.layout
+        self.layout = registry.site(config.website_path).layout
         self.logic = config.custom_soup_and_loop_logic
         self.path_include_re = compile_pattern(config.regex_path_include_pattern)
         self.path_exclude_re = compile_pattern(config.regex_path_exclude_pattern)
@@ -172,7 +172,7 @@ class HelficopySpider(scrapy.Spider):
     async def start(self):
 
         self.logger.info(f"Using crawl module: {self.config.name}")
-        self.logger.info(f"Scraping site: {self.website_path} ({self.config.layout} copy)")
+        self.logger.info(f"Scraping site: {self.website_path} ({self.state.layout} copy)")
         self.logger.info(f"Scraping files from {self.folder_path} with {self.workers} workers")
 
         self.all_start_time = time.time()  # Record the start time

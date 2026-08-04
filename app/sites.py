@@ -1,48 +1,16 @@
-# sites.py
-
-import os
 import sys
 import tomllib
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional
 
-from app.paths import APP_DIR, DATA_DIR, REPO_ROOT, in_config_dir
+from app.paths import APP_DIR, CONFIG_DIR, DATA_DIR
 
-PROJECTS_ENVIRONMENT_VARIABLE = 'SCRAPING_TOOL_PROJECTS_DIR'
+# Where the copies of the sites are kept.
+PROJECTS_DIR = DATA_DIR / 'projects'
 
-
-def projects_dir() -> Path:
-    """Where the copies of the sites are kept."""
-    override = (os.environ.get(PROJECTS_ENVIRONMENT_VARIABLE) or '').strip()
-
-    if override:
-        return Path(override).expanduser()
-
-    # Only the data directory has to be there. The copies are downloaded rather
-    # than written by hand, so download creates projects/ inside it when it
-    # needs to.
-    if DATA_DIR is not None and DATA_DIR.is_dir():
-        return DATA_DIR / 'projects'
-
-    return REPO_ROOT / 'projects'
-
-
-PROJECTS_DIR = projects_dir()
-
-# A site has to be listed before it can be downloaded, and the list that ships
-# with the tool can be replaced with one of your own.
-REGISTRY_PATH = in_config_dir('sites.toml', APP_DIR / 'sites.toml')
-
-# What the reusable github workflow calls the copy it uploads. The same for
-# every site, since they all call the same workflow.
-ARTIFACT_NAME = 'scraping-tool-results'
-
-# 'kopio'  the httrack copy of the www.hel.fi, from a kopio.hel.fi zip
-# 'wget2'  what .github/workflows/scraping-tool.yml mirrors for other sites
-LAYOUTS = ('kopio', 'wget2')
-DEFAULT_LAYOUT = 'wget2'
-
+USER_REGISTRY = CONFIG_DIR / 'sites.toml'
+REGISTRY_PATH = USER_REGISTRY if USER_REGISTRY.is_file() else APP_DIR / 'sites.toml'
 
 class SiteError(Exception):
     """Raised when a site name or a registry entry cannot be used."""
@@ -55,7 +23,15 @@ class Site:
     domain: str
     repo: Optional[str] = None
     url: Optional[str] = None
-    layout: str = DEFAULT_LAYOUT
+
+    @property
+    def layout(self) -> str:
+        """Site type.
+
+        'kopio'  the httrack copy of www.hel.fi, from a kopio.hel.fi zip
+        'wget2'  what .github/workflows/scraping-tool.yml mirrors for other sites
+        """
+        return 'kopio' if self.url else 'wget2'
 
     @classmethod
     def from_entry(cls, domain, entry) -> 'Site':
@@ -71,12 +47,6 @@ class Site:
             )
 
         values = {field: entry[field] for field in SITE_FIELDS if field in entry}
-
-        layout = values.get('layout', DEFAULT_LAYOUT)
-        if layout not in LAYOUTS:
-            raise SiteError(
-                f'layout "{layout}" is not one of {", ".join(LAYOUTS)}'
-            )
 
         return cls(domain=domain, **values)
 

@@ -1,7 +1,7 @@
-# download.py
-#
-# Getting a copy of a site onto the disk as projects/<domain>. Most sites come
-# from an artifact a github workflow uploaded, the core site from a plain zip.
+"""
+Getting a copy of a site onto the disk as projects/<domain>. www.hel.fi is
+downloaded from a plain zip. Other sites come from a Github artifact.
+"""
 
 import http.client
 import json
@@ -19,11 +19,14 @@ from typing import Iterator, Optional
 
 from app.progress import ProgressBar, human_readable_time
 from app.sites import (
-    ARTIFACT_NAME,
     PROJECTS_DIR,
     REGISTRY_PATH,
     registry,
 )
+
+# What the reusable github workflow calls the copy it uploads. The same for
+# every site, since they all call the same workflow.
+ARTIFACT_NAME = 'scraping-tool-results'
 
 GITHUB_API = 'https://api.github.com'
 USER_AGENT = 'drupal-helfi-scraping-tool'
@@ -47,24 +50,13 @@ class DownloadError(Exception):
     """Raised when a copy of a site cannot be fetched or unpacked."""
 
 
-def github_token() -> Optional[str]:
-    """The token to talk to github with."""
-    for name in TOKEN_VARIABLES:
-        value = (os.environ.get(name) or '').strip()
-        if value:
-            return value
-
-    return None
-
-
 class DropToken(urllib.request.HTTPRedirectHandler):
     """Leaves the github token behind when a redirect leads off github."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
 
-        # urllib copies every header onto the redirected request. The artifact
-        # redirect points at storage with the credentials already in the url.
+        # The artifact redirect points at storage with the credentials already in the url.
         if redirected is not None:
             redirected.headers.pop('Authorization', None)
 
@@ -72,7 +64,7 @@ class DropToken(urllib.request.HTTPRedirectHandler):
 
 
 class TokenAccess:
-    """Talks to github over https, with a token from the environment."""
+    """Talks to github api with a token."""
 
     name = 'GITHUB_TOKEN'
 
@@ -134,13 +126,13 @@ class TokenAccess:
 
 
 class CliAccess:
-    """Talks to github through the github cli, as whoever it is logged in as."""
+    """Talks to github through the github cli."""
 
     name = 'github cli'
 
     def gh(self, arguments: list[str], capture: bool = False,
            timeout: Optional[int] = None) -> subprocess.CompletedProcess:
-        """Runs a gh command, turning anything that goes wrong into a DownloadError."""
+        """Runs a gh command."""
         command = ['gh', *arguments]
 
         try:
@@ -178,16 +170,13 @@ class CliAccess:
 
     def fetch(self, repo: str, artifact: dict, run: dict, domain: str) -> None:
         """Downloads an artifact through gh, which unpacks it on the way in."""
-        # There is no zip to keep and no progress bar of ours here, since gh
-        # unpacks as it downloads and reports on its own to the terminal.
+        # gh unpacks the zip as it downloads and reports on its own to the terminal.
         with tempfile.TemporaryDirectory(prefix='scraping-tool-') as temporary:
             unpacked = Path(temporary) / 'unpacked'
             unpacked.mkdir()
 
             command = ['run', 'download']
 
-            # Naming the run pins the download to the copy that was just
-            # reported. Without one gh takes the newest, which can be another.
             run_id = run.get('id') or (artifact.get('workflow_run') or {}).get('id')
             if run_id:
                 command.append(str(run_id))
@@ -201,31 +190,27 @@ class CliAccess:
         print(f'Ready to scrape: {domain}')
 
 
-# Either way of reaching github answers to the same two things, a json request
-# and a download, so the rest of the module does not care which one it has.
+# Either way of reaching github makes a json request to artifact api
+# and a download the zip. Rest of the module does not care which method
+# is used.
 Access = TokenAccess | CliAccess
 
 
 def github_access() -> Access:
-    """How this run talks to github, in the order the ways are preferred."""
-    token = github_token()
-    if token:
-        return TokenAccess(token)
+    """How this run talks to Github."""
 
-    # Whether gh is logged in is left to gh to say, when it is asked to do
-    # something. Having it installed is what makes it the way in.
+    # Use token if it is set.
+    for name in TOKEN_VARIABLES:
+        value = (os.environ.get(name) or '').strip()
+        if value:
+            return TokenAccess(value)
+
+    # Use gh tool if it is installed. If used, the tool
+    # displays an error if it is not logged in.
     if shutil.which('gh'):
         return CliAccess()
 
     raise DownloadError(ACCESS_HELP)
-
-
-def github_access_name() -> Optional[str]:
-    """What the tool would use to reach github, for reporting it."""
-    try:
-        return github_access().name
-    except DownloadError:
-        return None
 
 
 def megabytes(count: int) -> str:
@@ -234,11 +219,10 @@ def megabytes(count: int) -> str:
 
 
 def download_fields(copied: int, total: int, elapsed: float) -> list[str]:
-    """How a download in progress is worded, in the order it is read."""
+    """Download fields for progress bar."""
     fields = [f'{megabytes(copied)} of {megabytes(total)}' if total else megabytes(copied)]
 
-    # A rate needs some time to have passed to mean anything, and without one
-    # there is nothing to work a remaining time out of either.
+    # A rate needs some time to have passed to mean anything.
     rate = copied / elapsed if elapsed > 0.5 else 0
     if rate:
         fields.append(f'{megabytes(rate)}/s')
@@ -275,7 +259,7 @@ def stream_to_file(response: http.client.HTTPResponse, destination: Path) -> Non
     print(f'  {megabytes(copied)} downloaded.')
 
 
-def artifacts_in(access, repo: str) -> Iterator[dict]:
+def artifacts_in(access: Access, repo: str) -> Iterator[dict]:
     """Every copy of a site in a repository, newest first."""
     page = 1
 
@@ -428,7 +412,8 @@ def download_site(site: str, allow_failed: bool = False) -> None:
     # An unlisted site is reported before anything is written to projects/.
     entry = registry.site(site)
 
-    # Make sure projects dir exists.
+    # The copy is unpacked into this, so it is made now rather than after a two
+    # gigabyte download has already been paid for.
     try:
         PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
     except OSError as error:
@@ -436,7 +421,6 @@ def download_site(site: str, allow_failed: bool = False) -> None:
 
     if not os.access(PROJECTS_DIR, os.W_OK):
         raise DownloadError(f'{PROJECTS_DIR} is not writable.')
-
 
     if entry.repo:
         return download_artifact(entry.domain, entry.repo, allow_failed)

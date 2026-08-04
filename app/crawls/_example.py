@@ -1,11 +1,7 @@
 # A template for a crawl module. Copy it and give the copy to the scrape command,
-# either by name if it is in this folder or as a path to the file.
+# either by name if it is in this folder or as a path to the file:
 #
-# The site is not set here, it is given on the command line:
-#
-#   scraping-tool scrape www.hel.fi ./my-search.py       search all pages
-#   scraping-tool scrape www.hel.fi/fi ./my-search.py    only the Finnish pages
-#   scraping-tool scrape historia.hel.fi ./my-search.py  another site entirely
+#   scraping-tool scrape www.hel.fi ./my-search.py
 #
 # Run 'scraping-tool sites' to see which sites have been downloaded.
 

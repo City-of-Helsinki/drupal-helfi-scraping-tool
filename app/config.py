@@ -1,8 +1,3 @@
-# config.py
-#
-# Loading a crawl module is a function call, not an import side effect, so that
-# nothing has to be decided before this file is imported.
-
 import importlib
 import importlib.util
 import sys
@@ -12,10 +7,8 @@ from types import ModuleType
 from typing import Callable, Optional
 
 from app.paths import APP_DIR
-from app.sites import DEFAULT_LAYOUT
 
-# The crawl modules that ship with the tool. Anything else is given as a path to
-# a file, so a module of your own can sit wherever you keep it.
+# The crawl modules that ship with the tool.
 CRAWLS_DIR = APP_DIR / 'crawls'
 
 # Every crawl module has to define these.
@@ -42,20 +35,22 @@ class CrawlConfig:
     regex_content_include_pattern: Optional[str]
     regex_content_exclude_pattern: Optional[str]
     custom_soup_and_loop_logic: Callable
-    # Which site to run against and what shape its copy is in. Both come from
-    # the command line, not from the module, so they are filled in afterwards.
-    website_path: str = ''
-    layout: str = DEFAULT_LAYOUT
+
+    # Which site to run against. It comes from the command line argument
+    # <site>, so it is filled in by cli.py.
+    website_path: str
 
     @classmethod
-    def load(cls, name: str) -> 'CrawlConfig':
+    def load(cls, name: str, site: str) -> 'CrawlConfig':
         """Imports a crawl module by name or by file path and returns its configuration."""
-        # A file of your own, taken as written, extension and all. Anything else
-        # is the name of a module in crawls/.
+
+        # A file to a custom crawl module or name of a module in crawls/.
         given = Path(name).expanduser()
 
         if given.is_file():
             path = given.resolve()
+
+            # Import custom module.
             module = import_file(path)
         else:
             path = CRAWLS_DIR / f'{name}.py'
@@ -68,8 +63,10 @@ class CrawlConfig:
                     + '\n\nA path to a file of your own works too, e.g. ./my-search.py'
                 )
 
+            # Import built-in crawl module.
             module = importlib.import_module('app.crawls.' + name)
 
+        # Validate crawl module.
         missing = [
             attribute for attribute in REQUIRED_ATTRIBUTES if not hasattr(module, attribute)
         ]
@@ -90,6 +87,7 @@ class CrawlConfig:
 
         return cls(
             name=name,
+            website_path=site,
             **{attribute: getattr(module, attribute) for attribute in REQUIRED_ATTRIBUTES},
         )
 
@@ -105,13 +103,10 @@ def available_modules() -> list[str]:
 
 def import_file(path: Path) -> ModuleType:
     """Imports a crawl module from the file it was given as."""
-    # The name only has to be unique in sys.modules; the file is what matters.
     safe_name = ''.join(c if c.isalnum() else '_' for c in path.stem)
     spec = importlib.util.spec_from_file_location(f'crawl_file_{safe_name}', path)
     module = importlib.util.module_from_spec(spec)
 
-    # Registered before it runs, the way import does, and left there so that the
-    # function it defines keeps its globals while the workers are calling it.
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
 
