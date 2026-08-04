@@ -1,7 +1,11 @@
-# A template for a crawl module. Copy it and give the copy to the scrape command,
-# either by name if it is in this folder or as a path to the file:
+# A template for a crawl module. Copy it into this folder and give the copy to
+# the scrape command as a path to the file:
 #
-#   scraping-tool scrape www.hel.fi ./my-search.py
+#   cp custom/_example.py custom/my-search.py
+#   scraping-tool scrape www.hel.fi ./custom/my-search.py
+#
+# Modules worth sharing can be moved to app/crawls/ and
+# committed, which makes them runnable by name.
 #
 # Run 'scraping-tool sites' to see which sites have been downloaded.
 

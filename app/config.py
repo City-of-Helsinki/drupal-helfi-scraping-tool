@@ -73,7 +73,7 @@ class CrawlConfig:
         if missing:
             raise CrawlModuleError(
                 f'Crawl module {path} is missing: {", ".join(missing)}.\n'
-                'See app/crawls/_example.py for a template.'
+                'See custom/_example.py for a template.'
             )
 
         # Backwards compatability.

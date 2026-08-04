@@ -4,6 +4,7 @@ services:
     volumes:
       - .:/usr/src
       - ./projects:/data/scraping-tool/projects
+      - ./custom:/usr/src/custom
     user: ${MY_UID}:${MY_GID}
     tty: true
     stdin_open: true

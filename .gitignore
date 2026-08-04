@@ -8,3 +8,8 @@ __pycache__/
 
 projects/*
 !projects/.keep
+
+# Crawl modules of your own stay out of the repo, the template does not.
+custom/*
+!custom/.gitkeep
+!custom/_example.py

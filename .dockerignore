@@ -1,6 +1,7 @@
 # The image needs pyproject.toml and the package. Everything the tool works on
 # is bind mounted at runtime.
 projects/
+custom/
 venv/
 .git/
 .idea/

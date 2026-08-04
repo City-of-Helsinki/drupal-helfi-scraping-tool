@@ -77,13 +77,15 @@ Crawl command wihtout arguments lists pre-built crawl modules:
 A crawl module can be given as a path to a custom file instead:
 
 ```
-scraping-tool scrape www.hel.fi ./my-search.py
+scraping-tool scrape www.hel.fi ./custom/my-search.py
 ```
+
+Modules of your own belong in [custom/](custom).
 
 To create one:
 
-* Copy [app/crawls/_example.py](app/crawls/_example.py) to a new file with a descriptive name
-  * For example: `cp app/crawls/_example.py ./my-searches/list-of-links.py`
+* Copy [custom/_example.py](custom/_example.py) to a new file with a descriptive name
+  * For example: `cp custom/_example.py custom/list-of-links.py`
 * Modify the new file to reduce the files to be searched as small as possible using filename and filecontents patterns
   * For example: `regex_content_include_pattern = r'component--list-of-links'`
 * Create an CSS selector to match the HTML elements of interest
@@ -93,7 +95,7 @@ To create one:
   * For example: `'url': url,` and `'text': match.get_text().strip(),`
   * This would print url as many times there are list-of-links on the site.
 * Save the changes to the module file, then run the scrape
-  * For example: `scraping-tool scrape www.hel.fi ./my-searches/list-of-links.py`
+  * For example: `scraping-tool scrape www.hel.fi ./custom/list-of-links.py`
 
 If you want to share your scrape module, move it to the folder
 `app/crawls/` and commit it. It can now be run by name with `scraping-tool
