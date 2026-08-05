@@ -13,17 +13,6 @@ This scraping tool helps to fill that need.
 
 ## Installing
 
-### With pipx
-
-Install [pipx]([https://pipx.pypa.io/](https://pipx.pypa.io/stable/how-to/install-pipx.html)).
-
-```
-pipx install git+https://github.com/City-of-Helsinki/drupal-helfi-scraping-tool.git
-pipx upgrade scraping-tool
-```
-
-### With Docker
-
 ```
 git clone https://github.com/City-of-Helsinki/drupal-helfi-scraping-tool.git
 cd drupal-helfi-scraping-tool
@@ -37,13 +26,9 @@ command in this README needs to be prefixed with `./` in this setup.
 
 Sites other than www.hel.fi need github credentials to download the html dump. Either
 install the [github cli](https://cli.github.com/) and run `gh auth login`, or put
-a token in the environment as `GITHUB_TOKEN`. Create a token at
+a token in [.env.local](.env.local.example). Create a token at
 https://github.com/settings/tokens with the `public_repo` scope, or a fine
 grained token with read access to Actions.
-
-If running in Docker, the container does not see `gh` tool from host. Copy
-[.env.local.example](.env.local.example) to `.env.local` and put the token
-there.
 
 ## How it works
 
@@ -61,10 +46,10 @@ latest dump. Other sites are scraped by a github workflow that runs on the
 site's repo.
 
 ```
-scraping-tool sites                           # list sites and what has been downloaded
-scraping-tool sites download historia.hel.fi  # from the github artifact
-scraping-tool sites download www.hel.fi       # from the kopio zip
-scraping-tool scrape historia.hel.fi quotes
+./scraping-tool sites                           # list sites and what has been downloaded
+./scraping-tool sites download historia.hel.fi  # from the github artifact
+./scraping-tool sites download www.hel.fi       # from the kopio zip
+./scraping-tool scrape historia.hel.fi quotes
 ```
 
 Site dumps update once per day. Run `scraping-tool sites download <site>` to re-download latest version.
@@ -81,12 +66,13 @@ This tool is used to scrape data from Drupal Helfi sites. It uses the [Scrapy](h
 
 ### Commands
 
-* `scraping-tool sites` lists the sites and shows which ones have been downloaded
-* `scraping-tool sites download <site>` downloads the latest copy of a site
-* `scraping-tool scrape <site> <scrape_module>` scrapes a downloaded site using given module rules (see below)
-* `scraping-tool scrape <site> <scrape_module> --output results.json` writes somewhere other than `scraped_data.json`
-* `scraping-tool list` lists available scrape modules
-* `scraping-tool env` lists settings as the tool sees them, useful for debugging if the tool does not work
+* `./scraping-tool sites` lists the sites and shows which ones have been downloaded
+* `./scraping-tool sites download <site>` downloads the latest copy of a site
+* `./scraping-tool scrape <site> <scrape_module>` scrapes a downloaded site using given module rules (see below)
+* `./scraping-tool scrape <site> <scrape_module> --output results.json` writes somewhere other than `scraped_data.json`
+* `./scraping-tool list` lists available scrape modules
+* `./scraping-tool env` lists settings as the tool sees them, useful for debugging if the tool does not work
+* `./scraping-tool build` re-creates docker image (e.g. when updating python dependencies).
 
 Add `--help` to any command to see the full set of options.
 
@@ -97,13 +83,13 @@ The site can be narrowed to a part of the site, e.g. `www.hel.fi/fi` only walks 
 Crawl command wihtout arguments lists pre-built crawl modules:
 
 ```
-`scraping-tool scrape`
+`./scraping-tool scrape`
 ```
 
 A crawl module can be given as a path to a custom file instead:
 
 ```
-scraping-tool scrape www.hel.fi ./custom/my-search.py
+./scraping-tool scrape www.hel.fi ./custom/my-search.py
 ```
 
 Modules of your own belong in [custom/](custom).
