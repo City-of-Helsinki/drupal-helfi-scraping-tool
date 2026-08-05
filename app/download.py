@@ -28,21 +28,19 @@ from app.sites import (
 # every site, since they all call the same workflow.
 ARTIFACT_NAME = 'scraping-tool-results'
 
-GITHUB_API = 'https://api.github.com'
 USER_AGENT = 'drupal-helfi-scraping-tool'
-TOKEN_VARIABLES = ('GITHUB_TOKEN', 'GH_TOKEN')
 
 # The download itself gets no limit.
 GH_API_TIMEOUT = 30
 
 ACCESS_HELP = (
-    'No way to reach github. Downloading an artifact needs credentials.\n'
+    'The github cli is required to download artifacts, and it is not on the\n'
+    'path. Install it from https://cli.github.com/.\n'
     '\n'
-    "The easiest way is the github cli: install it and run 'gh auth login'.\n"
-    '\n'
-    'Otherwise create a token at https://github.com/settings/tokens and set it in\n'
-    "the environment as GITHUB_TOKEN. A classic token needs the 'public_repo'\n"
-    'scope, a fine grained token read access to Actions on the repository.'
+    "Authenticate it by running 'gh auth login', or by setting a token in the\n"
+    'environment as GITHUB_TOKEN. Create one at https://github.com/settings/tokens\n'
+    "with the 'public_repo' scope, or a fine grained token with read access to\n"
+    'Actions on the repository.'
 )
 
 
@@ -50,167 +48,73 @@ class DownloadError(Exception):
     """Raised when a copy of a site cannot be fetched or unpacked."""
 
 
-class DropToken(urllib.request.HTTPRedirectHandler):
-    """Leaves the github token behind when a redirect leads off github."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
-
-        # The artifact redirect points at storage with the credentials already in the url.
-        if redirected is not None:
-            redirected.headers.pop('Authorization', None)
-
-        return redirected
-
-
-class TokenAccess:
-    """Talks to github api with a token."""
-
-    name = 'GITHUB_TOKEN'
-
-    def __init__(self, token: str) -> None:
-        self.token = token
-
-    def request(self, url: str) -> urllib.request.Request:
-        return urllib.request.Request(
-            url,
-            headers={
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-                'User-Agent': USER_AGENT,
-                'Authorization': f'Bearer {self.token}',
-            },
-        )
-
-    @staticmethod
-    def error(error: urllib.error.HTTPError, url: str) -> DownloadError:
-        """A DownloadError explaining an http error from the github api."""
-        if error.code == 401:
-            detail = 'The token was rejected. Check the token in the environment.'
-        elif error.code == 403:
-            if error.headers.get('x-ratelimit-remaining') == '0':
-                detail = 'Rate limited by github. Try again in a while.'
-            else:
-                detail = 'Access denied.'
-        elif error.code == 404:
-            detail = 'Not found. Check the repository name, and that the token can read it.'
-        else:
-            detail = error.reason
-
-        return DownloadError(f'{url}\n  github said {error.code}: {detail}')
-
-    def json(self, path: str) -> dict:
-        """The json body of a github api response, which is always an object."""
-        url = f'{GITHUB_API}/{path}'
-
-        try:
-            with urllib.request.urlopen(self.request(url)) as response:
-                return json.load(response)
-        except urllib.error.HTTPError as error:
-            raise self.error(error, url)
-        except urllib.error.URLError as error:
-            raise DownloadError(f'Could not reach {url}: {error.reason}')
-
-    def fetch(self, repo: str, artifact: dict, run: dict, domain: str) -> None:
-        """Downloads an artifact as the zip github serves it as."""
-        url = artifact['archive_download_url']
-        opener = urllib.request.build_opener(DropToken)
-
-        try:
-            with opener.open(self.request(url)) as response:
-                install_zip(response, domain)
-        except urllib.error.HTTPError as error:
-            raise self.error(error, url)
-        except urllib.error.URLError as error:
-            raise DownloadError(f'Could not reach {url}: {error.reason}')
-
-
-class CliAccess:
-    """Talks to github through the github cli."""
-
-    name = 'github cli'
-
-    def gh(self, arguments: list[str], capture: bool = False,
+def run_gh(arguments: list[str], capture: bool = False,
            timeout: Optional[int] = None) -> subprocess.CompletedProcess:
-        """Runs a gh command."""
-        command = ['gh', *arguments]
+    """Runs a gh command."""
+    command = ['gh', *arguments]
 
-        try:
-            finished = subprocess.run(
-                command, capture_output=capture, text=True, timeout=timeout
-            )
-        except subprocess.TimeoutExpired:
-            raise DownloadError(f'The github cli did not answer in time: {" ".join(command)}')
-        except (OSError, subprocess.SubprocessError) as error:
-            raise DownloadError(f'Could not run the github cli: {error}')
+    try:
+        finished = subprocess.run(
+            command, capture_output=capture, text=True, timeout=timeout
+        )
+    except subprocess.TimeoutExpired:
+        raise DownloadError(f'The github cli did not answer in time: {" ".join(command)}')
+    except (OSError, subprocess.SubprocessError) as error:
+        raise DownloadError(f'Could not run the github cli: {error}')
 
-        if finished.returncode != 0:
-            said = (finished.stderr or '').strip()
-            raise DownloadError(
-                'The github cli failed:\n'
-                + f'  {" ".join(command)}\n'
-                + (f'  {said}\n' if said else '')
-            )
-
-        return finished
-
-    def json(self, path: str) -> dict:
-        finished = self.gh(
-            ['api', '-H', 'X-GitHub-Api-Version: 2022-11-28', path],
-            capture=True,
-            timeout=GH_API_TIMEOUT,
+    if finished.returncode != 0:
+        said = (finished.stderr or '').strip()
+        raise DownloadError(
+            'The github cli failed:\n'
+            + f'  {" ".join(command)}\n'
+            + (f'  {said}\n' if said else '')
         )
 
-        try:
-            return json.loads(finished.stdout)
-        except json.JSONDecodeError:
-            raise DownloadError(
-                f'The github cli answered with something other than json for {path}.'
-            )
-
-    def fetch(self, repo: str, artifact: dict, run: dict, domain: str) -> None:
-        """Downloads an artifact through gh, which unpacks it on the way in."""
-        # gh unpacks the zip as it downloads and reports on its own to the terminal.
-        with tempfile.TemporaryDirectory(prefix='scraping-tool-') as temporary:
-            unpacked = Path(temporary) / 'unpacked'
-            unpacked.mkdir()
-
-            command = ['run', 'download']
-
-            run_id = run.get('id') or (artifact.get('workflow_run') or {}).get('id')
-            if run_id:
-                command.append(str(run_id))
-
-            command += ['--repo', repo, '--name', ARTIFACT_NAME, '--dir', str(unpacked)]
-
-            self.gh(command)
-
-            install_unpacked(unpacked, domain)
-
-        print(f'Ready to scrape: {domain}')
+    return finished
 
 
-# Either way of reaching github makes a json request to artifact api
-# and a download the zip. Rest of the module does not care which method
-# is used.
-Access = TokenAccess | CliAccess
+def github_json(path: str) -> dict:
+    """The json body of a github api response, which is always an object."""
+    finished = run_gh(
+        ['api', '-H', 'X-GitHub-Api-Version: 2022-11-28', path],
+        capture=True,
+        timeout=GH_API_TIMEOUT,
+    )
+
+    try:
+        return json.loads(finished.stdout)
+    except json.JSONDecodeError:
+        raise DownloadError(
+            f'The github cli answered with something other than json for {path}.'
+        )
 
 
-def github_access() -> Access:
-    """How this run talks to Github."""
+def fetch_artifact(repo: str, artifact: dict, run: dict, domain: str) -> None:
+    """Downloads an artifact through gh."""
+    # gh unpacks the zip as it downloads and reports on its own to the terminal.
+    with tempfile.TemporaryDirectory(prefix='scraping-tool-') as temporary:
+        unpacked = Path(temporary) / 'unpacked'
+        unpacked.mkdir()
 
-    # Use token if it is set.
-    for name in TOKEN_VARIABLES:
-        value = (os.environ.get(name) or '').strip()
-        if value:
-            return TokenAccess(value)
+        command = ['run', 'download']
 
-    # Use gh tool if it is installed. If used, the tool
-    # displays an error if it is not logged in.
-    if shutil.which('gh'):
-        return CliAccess()
+        run_id = run.get('id') or (artifact.get('workflow_run') or {}).get('id')
+        if run_id:
+            command.append(str(run_id))
 
-    raise DownloadError(ACCESS_HELP)
+        command += ['--repo', repo, '--name', ARTIFACT_NAME, '--dir', str(unpacked)]
+
+        run_gh(command)
+
+        install_unpacked(unpacked, domain)
+
+    print(f'Ready to scrape: {domain}')
+
+
+def require_github_cli() -> None:
+    """Checks the github cli is available."""
+    if not shutil.which('gh'):
+        raise DownloadError(ACCESS_HELP)
 
 
 def megabytes(count: int) -> str:
@@ -259,7 +163,7 @@ def stream_to_file(response: http.client.HTTPResponse, destination: Path) -> Non
     print(f'  {megabytes(copied)} downloaded.')
 
 
-def artifacts_in(access: Access, repo: str) -> Iterator[dict]:
+def artifacts_in(repo: str) -> Iterator[dict]:
     """Every copy of a site in a repository, newest first."""
     page = 1
 
@@ -267,7 +171,7 @@ def artifacts_in(access: Access, repo: str) -> Iterator[dict]:
         query = urllib.parse.urlencode(
             {'name': ARTIFACT_NAME, 'per_page': 100, 'page': page}
         )
-        answer = access.json(f'repos/{repo}/actions/artifacts?{query}')
+        answer = github_json(f'repos/{repo}/actions/artifacts?{query}')
 
         artifacts = answer.get('artifacts') or []
         if not artifacts:
@@ -281,12 +185,12 @@ def artifacts_in(access: Access, repo: str) -> Iterator[dict]:
         page += 1
 
 
-def latest_artifact(access, repo: str, allow_failed: bool) -> tuple[dict, dict]:
+def latest_artifact(repo: str, allow_failed: bool) -> tuple[dict, dict]:
     """The newest usable copy of a site, as (artifact, workflow run)."""
     expired = 0
     unsuccessful = []
 
-    for artifact in artifacts_in(access, repo):
+    for artifact in artifacts_in(repo):
         if artifact.get('expired'):
             expired += 1
             continue
@@ -295,7 +199,7 @@ def latest_artifact(access, repo: str, allow_failed: bool) -> tuple[dict, dict]:
         # request to find out.
         run_id = (artifact.get('workflow_run') or {}).get('id')
         run = (
-            access.json(f'repos/{repo}/actions/runs/{run_id}') if run_id else {}
+            github_json(f'repos/{repo}/actions/runs/{run_id}') if run_id else {}
         )
         conclusion = run.get('conclusion')
 
@@ -392,10 +296,10 @@ def download_zip(url: str, domain: str) -> None:
 
 def download_artifact(domain: str, repo: str, allow_failed: bool) -> None:
     """Downloads and unpacks the copy a github workflow made of a site."""
-    access = github_access()
+    require_github_cli()
 
     print(f"Looking for the latest '{ARTIFACT_NAME}' in {repo}")
-    artifact, run = latest_artifact(access, repo, allow_failed)
+    artifact, run = latest_artifact(repo, allow_failed)
 
     print(
         f'Found the copy from {artifact.get("created_at", "?")[:10]}, '
@@ -404,7 +308,7 @@ def download_artifact(domain: str, repo: str, allow_failed: bool) -> None:
     )
     print(f'  {run.get("html_url")}')
 
-    access.fetch(repo, artifact, run, domain)
+    fetch_artifact(repo, artifact, run, domain)
 
 
 def download_site(site: str, allow_failed: bool = False) -> None:

@@ -23,7 +23,7 @@ from app.config import (
 from app.download import (
     DownloadError,
     download_site,
-    github_access,
+    require_github_cli,
 )
 from app.paths import CONFIG_DIR
 from app.sites import (
@@ -85,17 +85,16 @@ def command_env(args):
 
     listed = f'{len(registry.sites)} sites'
 
-    # What the tool would use to reach github
-    try:
-        access = github_access().name
-    except DownloadError:
-        access = 'none'
-
     print(f'config directory: {CONFIG_DIR}')
     print(f'site copies:      {PROJECTS_DIR}')
     print(f'site registry:    {REGISTRY_PATH} ({listed})')
     print(f'crawl modules:    {CRAWLS_DIR}')
-    print(f'github access:    {access}')
+
+    try:
+        require_github_cli()
+    except DownloadError:
+        print(f'github access:    github cli missing')
+
     print(f'default output:   {os.path.abspath(DEFAULT_OUTPUT)}')
     print(f'python:           {sys.version.split()[0]}')
     print(f'scrapy:           {scrapy_version}')

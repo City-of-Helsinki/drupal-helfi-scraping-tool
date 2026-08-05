@@ -24,10 +24,13 @@ command in this README needs to be prefixed with `./` in this setup.
 
 ### Github access
 
-Sites other than www.hel.fi need github credentials to download the html dump. Either
-install the [github cli](https://cli.github.com/) and run `gh auth login`, or put
-a token in [.env.local](.env.local.example). Create a token at
-https://github.com/settings/tokens with the `public_repo` scope, or a fine
+Sites other than www.hel.fi need github credentials to download the html dump.
+They are downloaded with [github cli](https://cli.github.com/).
+
+To authenticate it, either install the github cli on your machine and run
+`gh auth login` — the `./scraping-tool` wrapper passes its token into the
+container or put a token in [.env.local](.env.local.example). Create a token
+at https://github.com/settings/tokens with the `public_repo` scope, or a fine
 grained token with read access to Actions.
 
 ## How it works

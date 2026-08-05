@@ -13,6 +13,8 @@ RUN mkdir -p /config /data && chmod 0777 /config /data
 # runtime.
 WORKDIR /usr/src
 
+RUN apk add --no-cache github-cli
+
 # Install the tool and dependencies from pyproject.toml.
 COPY pyproject.toml README.md LICENSE ./
 COPY app ./app
