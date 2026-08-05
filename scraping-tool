@@ -29,4 +29,17 @@ export COMPOSE_PROGRESS=quiet
 TTY_FLAG=''
 [ -t 1 ] || TTY_FLAG='-T'
 
-exec $DOCKER_COMPOSE_CMD run --rm $TTY_FLAG scrapy_service "$@"
+
+# Fetch Github token from host's gh tool and hand it over to the container.
+TOKEN_FLAG=''
+if command -v gh >/dev/null 2>&1; then
+  TOKEN=$(gh auth token 2>/dev/null || true)
+
+  if [ -n "$TOKEN" ]; then
+    export GITHUB_TOKEN="$TOKEN"
+    TOKEN_FLAG='-e GITHUB_TOKEN'
+  fi
+fi
+
+
+exec $DOCKER_COMPOSE_CMD run --rm $TTY_FLAG $TOKEN_FLAG scrapy_service "$@"
