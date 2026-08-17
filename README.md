@@ -19,24 +19,18 @@ cd drupal-helfi-scraping-tool
 ./scraping-tool build
 ```
 
-The `./scraping-tool` wrapper runs the tool inside the container, so every
-command in this README needs to be prefixed with `./` in this setup.
+The `./scraping-tool` wrapper runs the tool inside a docker container.
 
 ### Github access
 
 Sites other than www.hel.fi need github credentials to download the html dump.
-They are downloaded with [github cli](https://cli.github.com/).
-
-To authenticate it, either install the github cli on your machine and run
-`gh auth login` — the `./scraping-tool` wrapper passes its token into the
-container or put a token in [.env.local](.env.local.example). Create a token
-at https://github.com/settings/tokens with the `public_repo` scope, or a fine
-grained token with read access to Actions.
+They are downloaded with [github cli](https://cli.github.com/).  Install the github
+cli on your machine and run `gh auth login`.
 
 ## How it works
 
 * This tool is a command line program that scrapes offline copy of hel.fi sites.
-* It downloads a static copy of a site into `~/.local/share/scraping-tool/projects/<site>/`
+* It downloads a static copy of a site into `projects/<site>/`
 * It scrapes the contents of the .html files
   * To make it faster, it can filter files to be scanned based on filename, filecontents
   * With the selected set of files, it performs a scrape using CSS selector
