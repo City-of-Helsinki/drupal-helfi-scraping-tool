@@ -1,8 +1,3 @@
-"""
-Getting a copy of a site onto the disk as projects/<domain>. www.hel.fi is
-downloaded from a plain zip. Other sites come from a Github artifact.
-"""
-
 import http.client
 import json
 import os
@@ -24,8 +19,7 @@ from app.sites import (
     registry,
 )
 
-# What the reusable github workflow calls the copy it uploads. The same for
-# every site, since they all call the same workflow.
+# What the reusable github workflow calls the copy it uploads.
 ARTIFACT_NAME = 'scraping-tool-results'
 
 USER_AGENT = 'drupal-helfi-scraping-tool'
