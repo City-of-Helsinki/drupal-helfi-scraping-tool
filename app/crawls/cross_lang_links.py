@@ -1,6 +1,3 @@
-# Website path
-website_path = 'www.hel.fi' # Use when you want to search all pages
-
 # By default all regex matching is off
 regex_path_include_pattern = None # This turns off include filtering
 regex_path_exclude_pattern = None # This turns off exclude filtering
@@ -8,7 +5,7 @@ regex_content_include_pattern = None # This turns off include filtering
 regex_content_exclude_pattern = None # This turns off exclude filtering
 
 # Exclude helpers
-exclude_paging = '(\d[a-f\d][a-f\d][a-f\d]|[a-f\d]\d[a-f\d][a-f\d]|[a-f\d][a-f\d]\d[a-f\d]|[a-f\d][a-f\d][a-f\d]\d|e,location|adba|aeba|bdfb|ddbc|eddd|efde|fadc|fcac|fdfa|feab|ffdd|efbf|fddf|fffc|dfaa).html$'
+exclude_paging = r'(\d[a-f\d][a-f\d][a-f\d]|[a-f\d]\d[a-f\d][a-f\d]|[a-f\d][a-f\d]\d[a-f\d]|[a-f\d][a-f\d][a-f\d]\d|e,location|adba|aeba|bdfb|ddbc|eddd|efde|fadc|fcac|fdfa|feab|ffdd|efbf|fddf|fffc|dfaa).html$'
 
 # What files to exluce (After inclusion) based on path
 regex_path_exclude_pattern =  r''+exclude_paging+''
@@ -17,47 +14,32 @@ regex_path_exclude_pattern =  r''+exclude_paging+''
 def custom_soup_and_loop_logic(spider, response_body, url, BeautifulSoup):
     soup = BeautifulSoup(response_body, 'html.parser') # Create a BeautifulSoup object from the HTML content
 
+    # The site being scraped, without the language part of www.hel.fi/fi.
+    hosts = [spider.website_path.split('/')[0]]
+    # www.hel.fi is also linked to without the www.
+    if hosts[0].startswith('www.'):
+        hosts.append(hosts[0][len('www.'):])
+
+    # A link is cross language when the page it sits on is in one language and
+    # the link points into the folder of another.
+    languages = ('fi', 'sv', 'en')
+
     # CSS selector for matchging elements
-    css_selector = '''
-      html[lang="fi"] a[href^="http://www.hel.fi/sv/"]:not(.language-link),
-      html[lang="fi"] a[href^="https://www.hel.fi/sv/"]:not(.language-link),
-      html[lang="fi"] a[href^="http://hel.fi/sv/"]:not(.language-link),
-      html[lang="fi"] a[href^="https://hel.fi/sv/"]:not(.language-link),
-      html[lang="fi"] a[href^="../"][href*="/sv/"]:not(.language-link),
-      html[lang="fi"] a[href^="/sv/"]:not(.language-link),
-      html[lang="fi"] a[href^="http://www.hel.fi/en/"]:not(.language-link),
-      html[lang="fi"] a[href^="https://www.hel.fi/en/"]:not(.language-link),
-      html[lang="fi"] a[href^="http://hel.fi/en/"]:not(.language-link),
-      html[lang="fi"] a[href^="https://hel.fi/en/"]:not(.language-link),
-      html[lang="fi"] a[href^="../"][href*="/en/"]:not(.language-link),
-      html[lang="fi"] a[href^="/en/"]:not(.language-link),
+    selectors = []
+    for page_language in languages:
+        for language in languages:
+            if language == page_language:
+                continue
 
-      html[lang="sv"] a[href^="http://www.hel.fi/fi/"]:not(.language-link),
-      html[lang="sv"] a[href^="https://www.hel.fi/fi/"]:not(.language-link),
-      html[lang="sv"] a[href^="http://hel.fi/fi/"]:not(.language-link),
-      html[lang="sv"] a[href^="https://hel.fi/fi/"]:not(.language-link),
-      html[lang="sv"] a[href^="../"][href*="/fi/"]:not(.language-link),
-      html[lang="sv"] a[href^="/fi/"]:not(.language-link),
-      html[lang="sv"] a[href^="http://www.hel.fi/en/"]:not(.language-link),
-      html[lang="sv"] a[href^="https://www.hel.fi/en/"]:not(.language-link),
-      html[lang="sv"] a[href^="http://hel.fi/en/"]:not(.language-link),
-      html[lang="sv"] a[href^="https://hel.fi/en/"]:not(.language-link),
-      html[lang="sv"] a[href^="../"][href*="/en/"]:not(.language-link),
-      html[lang="sv"] a[href^="/en/"]:not(.language-link),
+            links = [f'a[href^="/{language}/"]', f'a[href^="../"][href*="/{language}/"]']
+            for name in hosts:
+                links.append(f'a[href^="http://{name}/{language}/"]')
+                links.append(f'a[href^="https://{name}/{language}/"]')
 
-      html[lang="en"] a[href^="http://www.hel.fi/sv/"]:not(.language-link),
-      html[lang="en"] a[href^="https://www.hel.fi/sv/"]:not(.language-link),
-      html[lang="en"] a[href^="http://hel.fi/sv/"]:not(.language-link),
-      html[lang="en"] a[href^="https://hel.fi/sv/"]:not(.language-link),
-      html[lang="en"] a[href^="../"][href*="/sv/"]:not(.language-link),
-      html[lang="en"] a[href^="/sv/"]:not(.language-link),
-      html[lang="en"] a[href^="http://www.hel.fi/fi/"]:not(.language-link),
-      html[lang="en"] a[href^="https://www.hel.fi/fi/"]:not(.language-link),
-      html[lang="en"] a[href^="http://hel.fi/fi/"]:not(.language-link),
-      html[lang="en"] a[href^="https://hel.fi/fi/"]:not(.language-link),
-      html[lang="en"] a[href^="../"][href*="/fi/"]:not(.language-link),
-      html[lang="en"] a[href^="/fi/"]:not(.language-link)
-    '''
+            for link in links:
+                selectors.append(f'html[lang="{page_language}"] {link}:not(.language-link)')
+
+    css_selector = ',\n'.join(selectors)
 
     # Find and loop through matching elements on this page
     matches = soup.select(css_selector)

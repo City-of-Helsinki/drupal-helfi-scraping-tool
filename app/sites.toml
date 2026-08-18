@@ -1,0 +1,21 @@
+# The sites this tool knows how to download.
+#
+# Keys:
+#   repo         github repository running .github/workflows/scraping-tool.yml
+#   url          zip file to download instead, for sites without that workflow.
+#                A site downloaded this way is read as an httrack copy.
+#
+# Adding new site.
+# 1. First add the workflow to the site, see example in city-of-helsinki/drupal-gh-actions.
+# 2. Then add it here:
+#
+#   [sites."esimerkki.hel.fi"]
+#   repo = "city-of-helsinki/esimerkki"
+#
+# A site has to be listed here before it can be downloaded or scraped.
+
+[sites."www.hel.fi"]
+url = "http://kopio.hel.fi/latest_html.zip"
+
+[sites."historia.hel.fi"]
+repo = "city-of-helsinki/historiaportaali"

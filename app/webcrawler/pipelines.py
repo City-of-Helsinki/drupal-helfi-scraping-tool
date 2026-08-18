@@ -3,52 +3,58 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
-
-# useful for handling different item types with a single interface
-from itemadapter import ItemAdapter
-
-
-# class WebcrawlerPipeline:
-#     def process_item(self, item, spider):
-#         return item
-
 import json
+import sys
+
+# What --output takes to mean stdout.
+STDOUT_PATH = '-'
+
+
+def to_stdout(settings):
+    """Whether the items are being written to stdout instead of to a file."""
+    return settings.get('SCRAPED_DATA_OUTPUT') == STDOUT_PATH
+
 
 class JsonExportPipeline:
-    def open_spider(self, spider):
-        self.file = open('scraped_data.json', 'w', encoding='utf-8')
+    # The cli resolves --output into SCRAPED_DATA_OUTPUT before the crawl starts.
+    def __init__(self, output_path):
+        self.output_path = output_path
+        self.streaming = output_path == STDOUT_PATH
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(output_path=crawler.settings.get('SCRAPED_DATA_OUTPUT'))
+
+    def open_spider(self):
+        if self.streaming:
+            self.file = sys.stdout
+        else:
+            self.file = open(self.output_path, 'w', encoding='utf-8')
+
         self.file.write('[')
-        self.item_count = 0  # Initialize a counter for the items
+        self.item_count = 0
 
-    def close_spider(self, spider):
-        # if self.item_count % 50 != 0:
-        #     # This is to remove the trailing comma for the last batch if it's not exactly 50 items
-        #     self.file.seek(self.file.tell() - 2, 0)
+    def close_spider(self):
         self.file.write('\n]')
-        self.file.close()
 
-    def process_item(self, item, spider):
-        line = json.dumps(dict(item), ensure_ascii=False) + ",\n"
-        self.file.write(line)
+        # Don't close stdout.
+        if self.streaming:
+            self.file.write('\n')
+            self.file.flush()
+        else:
+            self.file.close()
 
-        self.item_count += 1  # Increment the item counter
+    def process_item(self, item):
+        # An aborted run can close the file while an item is still on its way here.
+        if self.file.closed:
+            return item
 
-        # Check if the count has reached 50
+        separator = '\n' if self.item_count == 0 else ',\n'
+        self.file.write(separator + json.dumps(dict(item), ensure_ascii=False))
+
+        self.item_count += 1
+
         if self.item_count % 50 == 0:
             self.file.flush()  # Flush every 50 items
 
         return item
-
-
-
-
-
-
-
-
-
-
-
-
-
-

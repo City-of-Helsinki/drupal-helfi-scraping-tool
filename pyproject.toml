@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scraping-tool"
+version = "1.0.0"
+description = "Scrape a static copy of a hel.fi sites"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+# tomllib, which sites.py reads the site registry with.
+requires-python = ">=3.11"
+dependencies = [
+    "scrapy>=2.13.0,<3",
+    "beautifulsoup4>=4.12.2",
+]
+
+[project.urls]
+Repository = "https://github.com/City-of-Helsinki/drupal-helfi-scraping-tool"
+
+[project.scripts]
+scraping-tool = "app.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

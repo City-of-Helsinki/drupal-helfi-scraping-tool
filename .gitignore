@@ -1,9 +1,15 @@
 .env.local
-app/downloaded
-app/scraped_data.json
-app/crawls/custom/*
-!app/crawls/custom/_example.py
-!app/crawls/custom/README.md
+scraped_data.json
+
+__pycache__/
 
 # Ignore folders created by JetBrains IDEs.
 .idea/*
+
+projects/*
+!projects/.keep
+
+# Crawl modules of your own stay out of the repo, the template does not.
+custom/*
+!custom/.gitkeep
+!custom/_example.py

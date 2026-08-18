@@ -1,24 +1,27 @@
 # Use an official Python runtime as a parent image
-FROM python:3.11-alpine
+FROM python:3.14-alpine
 
 # Set environment variables (e.g., to make Python not write .pyc files)
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# Create and set working directory
-WORKDIR /usr/src/app
+ENV XDG_CONFIG_HOME=/config
+ENV XDG_DATA_HOME=/data
+RUN mkdir -p /config /data && chmod 0777 /config /data
 
-# Install any needed packages specified in requirements.txt
-COPY docker/requirements.txt ./
+# The repository is bind mounted over working directory at
+# runtime.
+WORKDIR /usr/src
+
+RUN apk add --no-cache github-cli
+
+# Install the tool and dependencies from pyproject.toml.
+COPY pyproject.toml README.md LICENSE ./
+COPY app ./app
 RUN \
     set -eux; \
-    apk add --no-cache --virtual .py_deps build-base python3-dev libffi-dev; \
-    pip install --no-cache-dir -r requirements.txt; \
+    apk add --no-cache --virtual .py_deps build-base libffi-dev; \
+    pip install --no-cache-dir -e .; \
     apk del .py_deps;
 
-# Copy the entrypoint script and make it executable
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# Set the entrypoint script as the default command to execute
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["scraping-tool"]

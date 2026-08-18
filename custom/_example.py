@@ -1,8 +1,13 @@
-# Website path
-website_path = 'www.hel.fi' # Use when you want to search all pages
-# website_path = 'www.hel.fi/fi' # Use when you want to limit search only to Finnish pages
-# website_path = 'www.hel.fi/sv' # Use when you want to limit search only to Swedish pages
-# website_path = 'www.hel.fi/en' # Use when you want to limit search only to English pages
+# A template for a crawl module. Copy it into this folder and give the copy to
+# the scrape command as a path to the file:
+#
+#   cp custom/_example.py custom/my-search.py
+#   scraping-tool scrape www.hel.fi ./custom/my-search.py
+#
+# Modules worth sharing can be moved to app/crawls/ and
+# committed, which makes them runnable by name.
+#
+# Run 'scraping-tool sites' to see which sites have been downloaded.
 
 # By default all regex matching is off
 regex_path_include_pattern = None # This turns off include filtering
@@ -15,8 +20,8 @@ regex_content_exclude_pattern = None # This turns off exclude filtering
 # regex_path_include_pattern = r'/kaupunkiymparisto-ja-liikenne/' # Liikenne
 
 # Exclude helpers
-exclude_paging = '(\d[a-f\d][a-f\d][a-f\d]|[a-f\d]\d[a-f\d][a-f\d]|[a-f\d][a-f\d]\d[a-f\d]|[a-f\d][a-f\d][a-f\d]\d|e,location|adba|aeba|bdfb|ddbc|eddd|efde|fadc|fcac|fdfa|feab|ffdd|efbf|fddf|fffc|dfaa).html$'
-exclude_news = '(\/uutiset\/|\/nyheter\/|\/news\/)'
+exclude_paging = r'(\d[a-f\d][a-f\d][a-f\d]|[a-f\d]\d[a-f\d][a-f\d]|[a-f\d][a-f\d]\d[a-f\d]|[a-f\d][a-f\d][a-f\d]\d|e,location|adba|aeba|bdfb|ddbc|eddd|efde|fadc|fcac|fdfa|feab|ffdd|efbf|fddf|fffc|dfaa).html$'
+exclude_news = r'(\/uutiset\/|\/nyheter\/|\/news\/)'
 exclude_error = '(illustration_error_page_403_401|illustration_error_page_404)'
 
 # What files to exluce (After inclusion) based on path
