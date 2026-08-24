@@ -19,3 +19,12 @@ url = "http://kopio.hel.fi/latest_html.zip"
 
 [sites."historia.hel.fi"]
 repo = "city-of-helsinki/historiaportaali"
+
+[sites."avustukset.hel.fi"]
+repo = "city-of-helsinki/hel-fi-drupal-grants"
+
+[sites."kaupunkitieto.hel.fi"]
+repo = "city-of-helsinki/drupal-kaupunkitieto"
+
+[sites."palvelukeskus.hel.fi"]
+repo = "city-of-helsinki/drupal-palvelukeskus"
