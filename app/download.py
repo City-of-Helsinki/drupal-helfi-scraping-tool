@@ -233,13 +233,13 @@ def install_unpacked(unpacked: Path, domain: str) -> None:
     source = unpacked if registry.site(domain).layout == 'kopio' else unpacked / domain
     final = PROJECTS_DIR / domain
 
-    print(f'Moving the copy into {PROJECTS_DIR}')
+    print(f'Copying the site into {PROJECTS_DIR}')
 
     # Remove the previous copy rather than write over it.
     if final.exists():
         shutil.rmtree(final)
 
-    shutil.move(source, final)
+    shutil.copytree(source, final, symlinks=True, dirs_exist_ok=True)
 
 
 def install_zip(response: http.client.HTTPResponse, domain: str) -> None:
